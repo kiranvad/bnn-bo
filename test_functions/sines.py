@@ -18,7 +18,7 @@ class SinX(SyntheticTestFunction):
     def __init__(
         self,
         dim: int = 1,
-        noise_std: Optional[float] = 0.1,
+        noise_std: Optional[float] = 0.3,
         negate: bool = False,
         bounds: Optional[List[Tuple[float, float]]] = None,
     ) -> None:
@@ -31,7 +31,7 @@ class SinX(SyntheticTestFunction):
         """
         self.dim = dim
         if bounds is None:
-            bounds = [(-pi, pi) for _ in range(self.dim)]
+            bounds = [(0, 20.0) for _ in range(self.dim)]
         self._optimizers = [tuple(0.0 for _ in range(self.dim))]
         super().__init__(noise_std=noise_std, negate=negate, bounds=bounds)
 
