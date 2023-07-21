@@ -31,9 +31,9 @@ class SinX(SyntheticTestFunction):
         """
         self.dim = dim
         if bounds is None:
-            bounds = [(0, 20.0) for _ in range(self.dim)]
+            bounds = [(-1.0, 2.0) for _ in range(self.dim)]
         self._optimizers = [tuple(0.0 for _ in range(self.dim))]
         super().__init__(noise_std=noise_std, negate=negate, bounds=bounds)
 
     def evaluate_true(self, X: Tensor) -> Tensor:
-        return torch.sin(X)
+        return -torch.sin(3*X) - X**2 + 0.7*X

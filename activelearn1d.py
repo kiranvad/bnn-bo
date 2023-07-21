@@ -10,20 +10,15 @@ import pdb
 import numpy as np
 
 import torch
-from botorch.acquisition import qExpectedImprovement
-from botorch.acquisition.active_learning import qNegIntegratedPosteriorVariance
 from botorch.acquisition.monte_carlo import qUpperConfidenceBound
 from botorch.optim import optimize_acqf
 from botorch.utils.sampling import draw_sobol_samples
 from botorch.utils.transforms import normalize, unnormalize
-from botorch.test_functions import Ackley
 from botorch.sampling.stochastic_samplers import StochasticSampler
-from botorch.sampling.qmc import NormalQMCEngine
 from botorch.utils.multi_objective.box_decompositions.dominated import DominatedPartitioning
 from botorch.utils.multi_objective.box_decompositions.non_dominated import FastNondominatedPartitioning
 
 from models import SingleTaskGP, MultiTaskGP, SingleTaskDKL, MultiTaskDKL
-from acquisitions import qPosteriorVariance
 from test_functions import SinX 
 
 import matplotlib.pyplot as plt
@@ -59,9 +54,8 @@ def initialize_points(test_function, n_init_points, output_dim, device):
 
 
 def construct_acqf_by_model(model, train_x, train_y, test_function):
-    sampler = StochasticSampler(sample_shape=torch.Size([128]))
-    # acqf = qPosteriorVariance(model=model,  sampler=sampler)
-    acqf = qUpperConfidenceBound(model=model, beta=10, sampler=sampler)
+    sampler = StochasticSampler(sample_shape=torch.Size([1024]))
+    acqf = qUpperConfidenceBound(model=model, beta=100, sampler=sampler)
 
     return acqf
 
@@ -78,7 +72,7 @@ def plot_iteration(test_function, train_x, train_y, new_x, new_y, model, acquisi
         acq_values = acquisition(normalized_points.reshape(num_grid_spacing, 1, 1)).cpu().numpy()
 
         # plot surrogate model
-        fig, axs = plt.subplots(2,1, figsize=(4, 4*2))
+        f, axs = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]})
         axs[0].plot(x, posterior_mean)
         axs[0].fill_between(x, lower.cpu().numpy(), upper.cpu().numpy(), alpha=0.5)
 
@@ -87,8 +81,16 @@ def plot_iteration(test_function, train_x, train_y, new_x, new_y, model, acquisi
 
         # plot data collected
         axs[0].scatter(train_x.cpu().numpy(), train_y.cpu().numpy(), marker='x', color='k')
-        axs[0].scatter(new_x.cpu().numpy(), new_y.cpu().numpy(), marker='x', color='r')    
+        axs[0].scatter(new_x.cpu().numpy(), new_y.cpu().numpy(), marker='x', color='r')  
 
+        for ax in axs:
+            # Move left and bottom spines outward by 10 points
+            ax.spines[['left', 'bottom']].set_position(('outward', 10))
+            # Hide the right and top spines
+            ax.spines[['top', 'right']].set_visible(False)
+
+        axs[0].spines[['bottom']].set_visible(False) 
+        axs[0].set_xticks([]) 
 
     return
 
@@ -153,7 +155,7 @@ for i in range(N_ITERATIONS):
     new_y = test_function(new_x)
 
     plot_iteration(test_function, train_x, train_y, new_x, new_y, model, acquisition)
-    plt.savefig(SAVE_DIR+'/Itr_%d.png'%i)
+    plt.savefig(SAVE_DIR+'/Itr_%d.png'%i, dpi=600)
 
     del acquisition
     del acqf_values

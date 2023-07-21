@@ -65,7 +65,7 @@ def initialize_points(test_function, n_init_points, output_dim, device, test_fun
     return init_x, init_y
 
 
-def construct_acqf_by_model(model_name, model, train_x, train_y, test_function):
+def construct_acqf_by_model(model, train_x, train_y, test_function):
     sampler = StochasticSampler(sample_shape=torch.Size([128]))
     if test_function.num_objectives == 1:
         qEI = qExpectedImprovement(
@@ -106,7 +106,8 @@ def plot_iteration(test_function, train_x, new_x, model, acquisition):
         y = np.linspace(*test_function.bounds[:,1].cpu().numpy(), num=num_grid_spacing)
         XX, YY = np.meshgrid(x,y)
         points = np.vstack([XX.ravel(), YY.ravel()]).T
-        points_t = torch.tensor(points).to(train_x)
+        normalized_points = normalize(points, test_function.bounds)
+        points_t = torch.tensor(normalized_points).to(train_x)
         posterior = model.posterior(points_t)
         posterior_mean = posterior.mean.cpu().numpy()
         Z = posterior_mean.reshape(num_grid_spacing,num_grid_spacing)
@@ -133,6 +134,7 @@ def plot_iteration(test_function, train_x, new_x, model, acquisition):
 BATCH_SIZE = 4
 N_INIT_POINTS = 5
 N_ITERATIONS = 10
+RANDOM_SEED = 2158
 SAVE_DIR = './results/'
 if os.path.exists(SAVE_DIR):
     shutil.rmtree(SAVE_DIR)
@@ -148,7 +150,7 @@ output_dim = test_function.num_objectives
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.float64)
-torch.manual_seed(int(args["seed"]))
+torch.manual_seed(RANDOM_SEED)
 
 init_x, init_y = initialize_points(test_function, N_INIT_POINTS, output_dim, device, test_function_name)
 bounds = test_function.bounds.to(init_x)
@@ -159,9 +161,8 @@ standard_bounds[1] = 1
 train_x = init_x
 train_y = init_y
 
-model_dict = args["models"] 
 model_name = "gp"
-model_args = model_dict[model_name]
+model_args = {"model":"gp"}
 model = initialize_model(model_name, model_args, input_dim, output_dim, device)
 
 t = time.time()
@@ -176,7 +177,7 @@ for i in range(N_ITERATIONS):
     print("fit time", model_end - model_start)
     
     acq_start = time.time()
-    acquisition = construct_acqf_by_model(model_name, model, normalized_x, train_y, test_function)
+    acquisition = construct_acqf_by_model(model, normalized_x, train_y, test_function)
     normalized_candidates, acqf_values = optimize_acqf(
         acquisition, standard_bounds, q=BATCH_SIZE, num_restarts=2, raw_samples=16, return_best_only=False,
         options={"batch_limit": 1, "maxiter": 10})
