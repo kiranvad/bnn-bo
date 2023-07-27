@@ -53,6 +53,12 @@ class SingleTaskGP(Model):
             self.gp.likelihood, self.gp).to(train_x)
         fit_gpytorch_mll(mll)
 
+    def get_covaraince(self, x, xp):          
+        cov = self.gp.covar_module(x, xp).to_dense()
+        K = cov.mean(axis=0).cpu().numpy().squeeze()
+
+        return K
+
 
 class MultiTaskGP(Model):
 
@@ -92,3 +98,9 @@ class MultiTaskGP(Model):
         self.gp = ModelListGP(*models)
         mll = SumMarginalLogLikelihood(self.gp.likelihood, self.gp).to(train_x)
         fit_gpytorch_mll(mll)
+
+    def get_covaraince(self, x, xp):          
+        cov = self.gp.covar_module(x, xp).to_dense()
+        K = cov.mean(axis=0).cpu().numpy().squeeze()
+
+        return K

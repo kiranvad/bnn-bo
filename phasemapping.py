@@ -14,45 +14,41 @@ from botorch.optim import optimize_acqf
 from botorch.utils.transforms import normalize, unnormalize
 
 from models import SingleTaskGP, MultiTaskGP, SingleTaskDKL, MultiTaskDKL
-from test_functions import PrabolicPhases
-from utils import initialize_model, initialize_points, construct_acqf_by_model 
-
-sys.path.append('/mmfs1/home/kiranvad/kiranvad/neural-processes') 
-from neural_process import NeuralProcess
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib import cm
-from matplotlib.colors import Normalize
+from test_functions import PhaseMappingTestFunction
+from utils import *
+from activephasemap.activelearn.simulators import PrabolicPhases, GaussianPhases
+from activephasemap.np.neural_process import NeuralProcess
 
 BATCH_SIZE = 2
 N_INIT_POINTS = 2
 N_ITERATIONS = 10
 RANDOM_SEED = 2158
 N_LATENT = 3
-SAVE_DIR = './results/sinx/'
+SAVE_DIR = './results/phasemaps/'
 if os.path.exists(SAVE_DIR):
     shutil.rmtree(SAVE_DIR)
 os.makedirs(SAVE_DIR)
 print('Saving the results to %s'%SAVE_DIR)
 
-sim = PrabolicPhases()
-input_dim = 2
-output_dim = N_LATENT 
-bounds = [(0.0, 1.0) for _ in range(input_dim)]
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.float64)
 torch.manual_seed(RANDOM_SEED)
 
-# define composite model 
+sim = PrabolicPhases(n_grid=100, use_random_warping=False, noise=True)
+sim.generate()
+sim.plot(SAVE_DIR+'phasemap.png')
 
 # Specify the Neural Process model
 np_model = NeuralProcess(1, 1, 50, N_LATENT, 50).to(device)
-np_model.load_state_dict(torch.load('../models/gaussians.pt', map_location=device))
+PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/phasemaps/pretrain/trained_model.pt"
+np_model.load_state_dict(torch.load(PRETRAIN_LOC, map_location=device))
 
-init_x, init_y = initialize_points(sim, N_INIT_POINTS, output_dim, device)
-bounds = torch.tensor(bounds).to(init_x)
+test_function = PhaseMappingTestFunction(sim=sim, np_model=np_model)
+input_dim = test_function.dim
+output_dim = N_LATENT 
+
+init_x, init_y = initialize_points(test_function, N_INIT_POINTS, output_dim, device)
+bounds = test_function.bounds.to(init_x)
 
 standard_bounds = torch.zeros(2, test_function.dim).to(init_x)
 standard_bounds[1] = 1
@@ -61,7 +57,15 @@ train_x = init_x
 train_y = init_y
 
 model_name = "gp"
-model_args = {"model":"gp"}
+if model_name=="gp":
+    model_args = {"model":"gp"}
+elif model_name=="dkl":
+    model_args = {"model": "dkl",
+    "regnet_dims": [16,16,16],
+    "regnet_activation": "tanh",
+    "pretrain_steps": 1000,
+    "train_steps": 1000
+    }
 model = initialize_model(model_name, model_args, input_dim, output_dim, device)
 
 t = time.time()
@@ -90,19 +94,27 @@ for i in range(N_ITERATIONS):
     candidates = unnormalize(normalized_candidates.detach(), bounds=bounds)
     new_x = candidates[best_index].to(train_x)
     # evaluate new y values and save
-    new_y = test_function(new_x)
+    new_y, spectra = test_function(new_x)
 
-    plot_iteration(test_function, train_x, train_y, new_x, new_y, model, acquisition)
-    plt.savefig(SAVE_DIR+'/Itr_%d.png'%i, dpi=600)
+    if np.remainder(100*(i)/N_ITERATIONS,10)==0:
+        plot_iteration(i, test_function, train_x, model, np_model, acquisition, N_LATENT)
+        plt.savefig(SAVE_DIR+'itr_%d.png'%i)
+        plt.close()
+        plot_gpmodel(test_function, model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)   
 
-    del acquisition
     del acqf_values
     del normalized_candidates
     torch.cuda.empty_cache()
 
     train_x = torch.cat([train_x, new_x])
     train_y = torch.cat([train_y, new_y])
-    
+
+"""Plotting after training"""
+plot_iteration(i, test_function, train_x, model, np_model, acquisition, N_LATENT)
+plt.savefig(SAVE_DIR+'itr_%d.png'%i) 
+plot_phasemap_pred(test_function, model, np_model, SAVE_DIR+'compare_spectra_pred.png')
+plot_gpmodel(test_function, model, np_model, SAVE_DIR+'model_c2z.png')    
+
 torch.save(train_x.cpu(), "%s/train_x.pt" % SAVE_DIR)
 torch.save(train_y.cpu(), "%s/train_y.pt" % SAVE_DIR)
 torch.save(model.state_dict(), SAVE_DIR+'model.pt')

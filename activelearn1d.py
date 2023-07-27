@@ -122,8 +122,16 @@ standard_bounds[1] = 1
 train_x = init_x
 train_y = init_y
 
-model_name = "gp"
-model_args = {"model":"gp"}
+model_name = "dkl"
+if model_name=="gp":
+    model_args = {"model":"gp"}
+elif model_name=="dkl":
+    model_args = {"model": "dkl",
+    "regnet_dims": [16,16,16],
+    "regnet_activation": "tanh",
+    "pretrain_steps": 1000,
+    "train_steps": 1000
+    }
 model = initialize_model(model_name, model_args, input_dim, output_dim, device)
 
 t = time.time()

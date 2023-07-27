@@ -145,6 +145,8 @@ class DKLGP(BatchedMultiOutputGPyTorchModel, ExactGP):
         return MultivariateNormal(mean_x, covar_x)
 
 
+
+
 class SingleTaskDKL(Model):
 
     def __init__(self, model_args, input_dim, output_dim, device):
@@ -215,6 +217,13 @@ class SingleTaskDKL(Model):
                 )
             optimizer.step()
 
+    def get_covaraince(self, x, xp):
+        proj_x = self.feature_extractor(x)
+        proj_xp = self.feature_extractor(xp)
+        cov = self.covar_module(proj_x, proj_xp).to_dense()
+        K = cov.mean(axis=0).cpu().numpy().squeeze()
+
+        return K
 
 class MultiTaskDKL(Model):
 
@@ -318,3 +327,11 @@ class MultiTaskDKL(Model):
                     f"Epoch {epoch+1:>3}/{n_epochs} - Loss: {loss.item():>4.3f} "
                 )
             optimizer.step()
+
+    def get_covaraince(self, x, xp):
+        proj_x = self.gp.feature_extractor(x)
+        proj_xp = self.gp.feature_extractor(xp)
+        cov = self.gp.covar_module(proj_x, proj_xp).to_dense()
+        K = cov.mean(axis=0).cpu().numpy().squeeze()
+
+        return K
