@@ -63,7 +63,7 @@ def plot_iteration(query_idx, test_function, train_x, gp_model, np_model, acquis
     layout = [['A1','A2', 'C', 'C'], 
               ['B1', 'B2', 'C', 'C']
               ]
-    C_train = test_function.sim.points.astype(np.float32)
+    C_train = test_function.sim.points
     fig, axs = plt.subplot_mosaic(layout, figsize=(4*4, 4*2))
     fig.subplots_adjust(wspace=0.5, hspace=0.5)
     x_ = train_x.cpu().numpy()
@@ -106,7 +106,7 @@ def plot_iteration(query_idx, test_function, train_x, gp_model, np_model, acquis
 def plot_gpmodel(test_function, gp_model, np_model, fname):
     # plot comp to z model predictions and the GP covariance
     z_dim = np_model.z_dim
-    fig, axs = plt.subplots(4,z_dim, figsize=(4*z_dim, 4*4))
+    fig, axs = plt.subplots(2,z_dim*2, figsize=(4*z_dim*2, 4*2))
     fig.subplots_adjust(wspace=0.5, hspace=0.5)
     C_train = test_function.sim.points
     y_train = np.asarray(test_function.sim.F)
@@ -151,20 +151,19 @@ def plot_gpmodel(test_function, gp_model, np_model, fname):
         # plot predicted z values as contour plots
         for i in range(z_dim):
             norm=plt.Normalize(z_pred[:,i].min(),z_pred[:,i].max())
-            axs[2,i].tricontourf(C_train[:,0], C_train[:,1], 
+            axs[1,z_dim+i].tricontourf(C_train[:,0], C_train[:,1], 
             z_pred[:,i], cmap='bwr', norm=norm)        
-            axs[2,i].set_xlabel('C1')
-            axs[2,i].set_ylabel('C2') 
-            axs[2,i].set_title('Predicted z_%d'%(i+1))
+            axs[1,z_dim+i].set_xlabel('C1')
+            axs[1,z_dim+i].set_ylabel('C2') 
+            axs[1,z_dim+i].set_title('Predicted z_%d'%(i+1))
 
         # plot true z values as contour plots
         for i in range(z_dim):
             norm=plt.Normalize(z_true_mu[:,i].min(),z_true_mu[:,i].max())
-            axs[3,i].tricontourf(C_train[:,0], C_train[:,1], 
-            z_true_mu[:,i], cmap='bwr', norm=norm)        
-            axs[3,i].set_xlabel('C1')
-            axs[3,i].set_ylabel('C2') 
-            axs[3,i].set_title('True z_%d'%(i+1))        
+            axs[0,z_dim+i].tricontourf(C_train[:,0], C_train[:,1], z_true_mu[:,i], cmap='bwr', norm=norm)        
+            axs[0,z_dim+i].set_xlabel('C1')
+            axs[0,z_dim+i].set_ylabel('C2') 
+            axs[0,z_dim+i].set_title('True z_%d'%(i+1))        
 
         plt.savefig(fname)
         plt.close()        

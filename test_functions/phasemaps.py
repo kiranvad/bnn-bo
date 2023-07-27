@@ -32,7 +32,6 @@ class PhaseMappingTestFunction:
         t = torch.from_numpy(self.sim.t)
         t = t.repeat(X.shape[0], 1).to(device)
         with torch.no_grad():
-            print(t.dtype, spectra.dtype)
             z, _ = np_model.xy_to_mu_sigma(t.unsqueeze(2), spectra.unsqueeze(2))
 
         return z  

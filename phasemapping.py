@@ -31,7 +31,7 @@ os.makedirs(SAVE_DIR)
 print('Saving the results to %s'%SAVE_DIR)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-torch.set_default_dtype(torch.float64)
+torch.set_default_dtype(torch.double)
 torch.manual_seed(RANDOM_SEED)
 
 sim = PrabolicPhases(n_grid=100, use_random_warping=False, noise=True)
@@ -49,9 +49,9 @@ output_dim = N_LATENT
 
 init_x = initialize_points(test_function, N_INIT_POINTS, output_dim, device)
 init_y = test_function(np_model, init_x)
-bounds = test_function.bounds.to(init_x)
+bounds = test_function.bounds.to(device)
 
-standard_bounds = torch.zeros(2, test_function.dim).to(init_x)
+standard_bounds = torch.zeros(2, test_function.dim).to(device)
 standard_bounds[1] = 1
 
 train_x = init_x
@@ -62,12 +62,12 @@ if model_name=="gp":
     model_args = {"model":"gp"}
 elif model_name=="dkl":
     model_args = {"model": "dkl",
-    "regnet_dims": [16,16,16],
+    "regnet_dims": [32,32,32],
     "regnet_activation": "tanh",
     "pretrain_steps": 1000,
     "train_steps": 1000
     }
-model = initialize_model(model_name, model_args, input_dim, output_dim, device)
+gp_model = initialize_model(model_name, model_args, input_dim, output_dim, device)
 
 t = time.time()
 for i in range(N_ITERATIONS):
@@ -76,15 +76,21 @@ for i in range(N_ITERATIONS):
     # fit model on normalized x
     model_start = time.time()
     normalized_x = normalize(train_x, bounds).to(train_x)
-    model.fit_and_save(normalized_x, train_y, SAVE_DIR)
+    gp_model.fit_and_save(normalized_x, train_y, SAVE_DIR)
     model_end = time.time()
     print("fit time", model_end - model_start)
     
     acq_start = time.time()
-    acquisition = construct_acqf_by_model(model, normalized_x, train_y, test_function)
+    acquisition = construct_acqf_by_model(gp_model, normalized_x, train_y, test_function)
     normalized_candidates, acqf_values = optimize_acqf(
-        acquisition, standard_bounds, q=BATCH_SIZE, num_restarts=2, raw_samples=16, return_best_only=False,
-        options={"batch_limit": 1, "maxiter": 10})
+        acquisition, 
+        standard_bounds, 
+        q=BATCH_SIZE, 
+        num_restarts=2, 
+        raw_samples=16, 
+        return_best_only=False,
+        options={"batch_limit": 1, "maxiter": 10, "with_grad":True}
+        )
 
     # calculate acquisition values after rounding
     acqf_values = acquisition(normalized_candidates)
@@ -98,10 +104,10 @@ for i in range(N_ITERATIONS):
     new_y = test_function(np_model, new_x)
 
     if np.remainder(100*(i)/N_ITERATIONS,10)==0:
-        plot_iteration(i, test_function, train_x, model, np_model, acquisition, N_LATENT)
+        plot_iteration(i, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
         plt.savefig(SAVE_DIR+'itr_%d.png'%i)
         plt.close()
-        plot_gpmodel(test_function, model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)   
+        plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)   
 
     del acqf_values
     del normalized_candidates
@@ -111,11 +117,15 @@ for i in range(N_ITERATIONS):
     train_y = torch.cat([train_y, new_y])
 
 """Plotting after training"""
-plot_iteration(i, test_function, train_x, model, np_model, acquisition, N_LATENT)
+plot_iteration(i, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
 plt.savefig(SAVE_DIR+'itr_%d.png'%i) 
-plot_phasemap_pred(test_function, model, np_model, SAVE_DIR+'compare_spectra_pred.png')
-plot_gpmodel(test_function, model, np_model, SAVE_DIR+'model_c2z.png')    
+plot_phasemap_pred(test_function, gp_model, np_model, SAVE_DIR+'compare_spectra_pred.png')
+plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'model_c2z.png')   
+
+fig, ax = plt.subplots(figsize=(10,10))
+plot_gpmodel_grid(ax, test_function, gp_model, np_model, show_sigma=False)
+plt.savefig(SAVE_DIR+'phasemap_pred.png') 
 
 torch.save(train_x.cpu(), "%s/train_x.pt" % SAVE_DIR)
 torch.save(train_y.cpu(), "%s/train_y.pt" % SAVE_DIR)
-torch.save(model.state_dict(), SAVE_DIR+'model.pt')
+torch.save(gp_model.state_dict(), SAVE_DIR+'model.pt')
