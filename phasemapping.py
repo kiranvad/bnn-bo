@@ -43,11 +43,12 @@ np_model = NeuralProcess(1, 1, 50, N_LATENT, 50).to(device)
 PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/phasemaps/pretrain/trained_model.pt"
 np_model.load_state_dict(torch.load(PRETRAIN_LOC, map_location=device))
 
-test_function = PhaseMappingTestFunction(sim=sim, np_model=np_model)
+test_function = PhaseMappingTestFunction(sim=sim)
 input_dim = test_function.dim
 output_dim = N_LATENT 
 
-init_x, init_y = initialize_points(test_function, N_INIT_POINTS, output_dim, device)
+init_x = initialize_points(test_function, N_INIT_POINTS, output_dim, device)
+init_y = test_function(np_model, init_x)
 bounds = test_function.bounds.to(init_x)
 
 standard_bounds = torch.zeros(2, test_function.dim).to(init_x)
@@ -56,7 +57,7 @@ standard_bounds[1] = 1
 train_x = init_x
 train_y = init_y
 
-model_name = "gp"
+model_name = "dkl"
 if model_name=="gp":
     model_args = {"model":"gp"}
 elif model_name=="dkl":
@@ -94,7 +95,7 @@ for i in range(N_ITERATIONS):
     candidates = unnormalize(normalized_candidates.detach(), bounds=bounds)
     new_x = candidates[best_index].to(train_x)
     # evaluate new y values and save
-    new_y, spectra = test_function(new_x)
+    new_y = test_function(np_model, new_x)
 
     if np.remainder(100*(i)/N_ITERATIONS,10)==0:
         plot_iteration(i, test_function, train_x, model, np_model, acquisition, N_LATENT)

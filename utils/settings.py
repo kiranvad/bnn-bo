@@ -28,9 +28,8 @@ def initialize_points(test_function, n_init_points, output_dim, device):
     else:
         bounds = test_function.bounds.to(device, dtype=torch.float64)
         init_x = draw_sobol_samples(bounds=bounds, n=n_init_points, q=1).squeeze(-2)
-    init_y = test_function(init_x)
 
-    return init_x, init_y
+    return init_x
 
 
 def construct_acqf_by_model(model, train_x, train_y, test_function):

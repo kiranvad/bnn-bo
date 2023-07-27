@@ -14,6 +14,7 @@ from gpytorch.mlls import ExactMarginalLogLikelihood
 from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
 from gpytorch.priors import GammaPrior
 from torch import Tensor
+import pdb
 
 
 class SingleTaskGP(Model):
@@ -53,7 +54,7 @@ class SingleTaskGP(Model):
             self.gp.likelihood, self.gp).to(train_x)
         fit_gpytorch_mll(mll)
 
-    def get_covaraince(self, x, xp):          
+    def get_covaraince(self, x, xp):
         cov = self.gp.covar_module(x, xp).to_dense()
         K = cov.mean(axis=0).cpu().numpy().squeeze()
 
@@ -99,8 +100,10 @@ class MultiTaskGP(Model):
         mll = SumMarginalLogLikelihood(self.gp.likelihood, self.gp).to(train_x)
         fit_gpytorch_mll(mll)
 
-    def get_covaraince(self, x, xp):          
-        cov = self.gp.covar_module(x, xp).to_dense()
+    def get_covaraince(self, x, xp):  
+        cov = torch.zeros((1,len(xp))).to(xp)
+        for m in self.gp.models:        
+            cov += m.covar_module(x, xp).to_dense()
         K = cov.mean(axis=0).cpu().numpy().squeeze()
 
         return K

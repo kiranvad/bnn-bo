@@ -329,9 +329,11 @@ class MultiTaskDKL(Model):
             optimizer.step()
 
     def get_covaraince(self, x, xp):
-        proj_x = self.gp.feature_extractor(x)
-        proj_xp = self.gp.feature_extractor(xp)
-        cov = self.gp.covar_module(proj_x, proj_xp).to_dense()
+        cov = torch.zeros((1,len(xp))).to(xp)
+        for m in self.gp.models:    
+            proj_x = m.feature_extractor(x)
+            proj_xp = m.feature_extractor(xp)  
+            cov += m.covar_module(proj_x, proj_xp).to_dense()
         K = cov.mean(axis=0).cpu().numpy().squeeze()
 
         return K

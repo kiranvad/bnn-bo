@@ -22,12 +22,11 @@ def predict(model, x, bounds):
 def from_comp_to_spectrum(test_function, gp_model, np_model, c):
     with torch.no_grad():
         t_ = test_function.sim.t
-        c = torch.tensor(c, dtype=torch.float32).to(device)
+        c = torch.tensor(c).to(device)
         z_sample,_ = predict(gp_model, c, test_function.bounds.to(c))
-        z_sample = torch.tensor(z_sample, dtype=torch.float32).to(device)
-        t = torch.from_numpy(t_.astype(np.float32)).to(device)
+        z_sample = torch.tensor(z_sample).to(device)
+        t = torch.from_numpy(t_).to(device)
         t = t.repeat(c.shape[0]).view(c.shape[0], len(t_), 1)
-        pdb.set_trace()
         mu, std = np_model.xz_to_y(t, z_sample)
 
         return mu, std  
@@ -92,7 +91,7 @@ def plot_iteration(query_idx, test_function, train_x, gp_model, np_model, acquis
             axs['B2'].set_ylabel('f(t)', fontsize=20) 
 
             z_sample = torch.randn((1, z_dim)).to(device)
-            t = torch.from_numpy(t_.astype(np.float32))
+            t = torch.from_numpy(t_)
             t = t.view(1, t_.shape[0], 1).to(device)
             mu, _ = np_model.xz_to_y(t, z_sample)
             axs['B1'].plot(t_, mu.cpu().squeeze(), color='grey')
@@ -109,19 +108,19 @@ def plot_gpmodel(test_function, gp_model, np_model, fname):
     z_dim = np_model.z_dim
     fig, axs = plt.subplots(4,z_dim, figsize=(4*z_dim, 4*4))
     fig.subplots_adjust(wspace=0.5, hspace=0.5)
-    C_train = test_function.sim.points.astype(np.float32)
-    y_train = np.asarray(test_function.sim.F, dtype=np.float32)
+    C_train = test_function.sim.points
+    y_train = np.asarray(test_function.sim.F)
     t_ = test_function.sim.t
     n_train = len(C_train)
     with torch.no_grad():
-        c = torch.tensor(C_train, dtype=torch.float32).to(device)
-        normalized_c = normalize(c, test_function.bounds)
-        posterior = model.posterior(normalized_c)
+        c = torch.tensor(C_train).to(device)
+        normalized_c = normalize(c, test_function.bounds.to(device))
+        posterior = gp_model.posterior(normalized_c)
         z_pred = posterior.mean.cpu().numpy()
 
-        t = torch.from_numpy(t_.astype(np.float32))
+        t = torch.from_numpy(t_)
         t = t.repeat(n_train, 1).to(device)
-        y =  torch.from_numpy(y_train.astype(np.float32)).to(device)
+        y =  torch.from_numpy(y_train).to(device)
         z_true_mu, z_true_sigma = np_model.xy_to_mu_sigma(t.unsqueeze(2),y.unsqueeze(2))
         z_true_mu = z_true_mu.cpu().numpy()
         z_true_sigma = z_true_sigma.cpu().numpy()
@@ -137,12 +136,12 @@ def plot_gpmodel(test_function, gp_model, np_model, fname):
         X,Y = np.meshgrid(np.linspace(min(C_train[:,0]),max(C_train[:,0]),10), 
         np.linspace(min(C_train[:,1]),max(C_train[:,1]),10))
         c_grid_np = np.vstack([X.ravel(), Y.ravel()]).T 
-        c_grid = torch.tensor(c_grid_np, dtype=torch.float32).to(device)
+        c_grid = torch.tensor(c_grid_np).to(device)
         # plot covariance of randomly selected points
         idx = RNG.choice(range(n_train),size=z_dim, replace=False)  
         for i, id_ in enumerate(idx):
             ci = C_train[id_,:].reshape(1, 2)
-            ci = torch.tensor(ci, dtype=torch.float32).to(device)
+            ci = torch.tensor(ci).to(device)
             Ki = gp_model.get_covaraince(ci, c_grid)
             axs[1,i].tricontourf(c_grid_np[:,0], c_grid_np[:,1], Ki, cmap='plasma')
             axs[1,i].scatter(C_train[id_,0], C_train[id_,1], marker='x', s=50, color='k')

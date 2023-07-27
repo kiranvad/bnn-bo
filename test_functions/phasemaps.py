@@ -2,16 +2,15 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import pdb
-from botorch.test_functions import SyntheticTestFunction
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # create synthetic data
-class PhaseMappingTestFunction(SyntheticTestFunction):
+class PhaseMappingTestFunction:
     r"""Base class for phasemapping test functions
 
     """
-    _check_grad_at_opt: bool = False
 
-    def __init__(self, sim, np_model, dim = 2, num_objectives=3):
+    def __init__(self, sim, dim = 2, num_objectives=3):
         r"""
         Args:
             dim: The (input) dimension.
@@ -21,20 +20,22 @@ class PhaseMappingTestFunction(SyntheticTestFunction):
         """
         self.sim = sim 
         self.dim = dim
-        bounds = [(0.0, 1.0) for _ in range(self.dim)]
-        super().__init__(noise_std=0.0, negate=False, bounds=bounds)
-        self.np_model = np_model
+        self._bounds = [(0.0, 1.0) for _ in range(self.dim)]
+        self.bounds = torch.tensor(self._bounds).transpose(-1, -2).to(device)
         self.num_objectives = num_objectives
 
-    def evaluate_true(self, X):
-        spectra = torch.zeros((X.shape[0], self.sim.n_domain)).to(X)
+    def evaluate_true(self, np_model, X):
+        spectra = torch.zeros((X.shape[0], self.sim.n_domain)).to(device)
         for i, xi in enumerate(X):
             si = self.sim.simulate(xi.cpu().numpy())
-            spectra[i] = torch.tensor(si, dtype=torch.float32).to(X)
-        t = torch.from_numpy(self.sim.t.astype(np.float32))
-        t = t.repeat(X.shape[0], 1).to(X)
+            spectra[i] = torch.tensor(si).to(device)
+        t = torch.from_numpy(self.sim.t)
+        t = t.repeat(X.shape[0], 1).to(device)
         with torch.no_grad():
-            z, _ = self.np_model.xy_to_mu_sigma(t.unsqueeze(2), spectra.unsqueeze(2))
+            print(t.dtype, spectra.dtype)
+            z, _ = np_model.xy_to_mu_sigma(t.unsqueeze(2), spectra.unsqueeze(2))
 
-        return z   
+        return z  
+
+    __call__ = evaluate_true 
 
