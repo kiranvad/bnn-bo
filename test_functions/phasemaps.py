@@ -20,7 +20,7 @@ class PhaseMappingTestFunction:
         """
         self.sim = sim 
         self.dim = dim
-        self._bounds = [(0.0, 1.0) for _ in range(self.dim)]
+        self._bounds = [(1e-4, 1.0) for _ in range(self.dim)]
         self.bounds = torch.tensor(self._bounds).transpose(-1, -2).to(device)
         self.num_objectives = num_objectives
 

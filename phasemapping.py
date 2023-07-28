@@ -19,7 +19,7 @@ from utils import *
 from activephasemap.activelearn.simulators import PrabolicPhases, GaussianPhases
 from activephasemap.np.neural_process import NeuralProcess
 
-BATCH_SIZE = 2
+BATCH_SIZE = 4
 N_INIT_POINTS = 2
 N_ITERATIONS = 10
 RANDOM_SEED = 2158
@@ -51,13 +51,13 @@ init_x = initialize_points(test_function, N_INIT_POINTS, output_dim, device)
 init_y = test_function(np_model, init_x)
 bounds = test_function.bounds.to(device)
 
-standard_bounds = torch.zeros(2, test_function.dim).to(device)
-standard_bounds[1] = 1
+standard_bounds = torch.ones(2, test_function.dim).to(device)
+standard_bounds[0] = 1e-5
 
 train_x = init_x
 train_y = init_y
 
-model_name = "dkl"
+model_name = "gp"
 if model_name=="gp":
     model_args = {"model":"gp"}
 elif model_name=="dkl":
@@ -86,9 +86,10 @@ for i in range(N_ITERATIONS):
         acquisition, 
         standard_bounds, 
         q=BATCH_SIZE, 
-        num_restarts=2, 
-        raw_samples=16, 
+        num_restarts=64, 
+        raw_samples=1024, 
         return_best_only=False,
+        sequential=False,
         options={"batch_limit": 1, "maxiter": 10, "with_grad":True}
         )
 
