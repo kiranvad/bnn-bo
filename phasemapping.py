@@ -16,15 +16,16 @@ from botorch.utils.transforms import normalize, unnormalize
 from models import SingleTaskGP, MultiTaskGP, SingleTaskDKL, MultiTaskDKL
 from test_functions import PhaseMappingTestFunction
 from utils import *
-from activephasemap.activelearn.simulators import PrabolicPhases, GaussianPhases
+from activephasemap.activelearn.simulators import PrabolicPhases, GaussianPhases, GNPPhases
 from activephasemap.np.neural_process import NeuralProcess
 
 BATCH_SIZE = 4
 N_INIT_POINTS = 2
 N_ITERATIONS = 10
 RANDOM_SEED = 2158
-N_LATENT = 3
-SAVE_DIR = './results/phasemaps/'
+MODEL_NAME = "dkl"
+SIMULATOR = "goldnano"
+SAVE_DIR = './results/phasemaps/%s_%s/'%(SIMULATOR, MODEL_NAME)
 if os.path.exists(SAVE_DIR):
     shutil.rmtree(SAVE_DIR)
 os.makedirs(SAVE_DIR)
@@ -34,13 +35,26 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
 torch.manual_seed(RANDOM_SEED)
 
-sim = PrabolicPhases(n_grid=100, use_random_warping=False, noise=True)
+if SIMULATOR=="parabolic":
+    sim = PrabolicPhases(n_grid=100, use_random_warping=False, noise=True)
+elif SIMULATOR=="gaussians":
+    sim = GaussianPhases(n_grid=100, use_random_warping=False, noise=True)
+elif SIMULATOR=="goldnano":
+    dirloc = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/gold_nano_grid/"
+    sim = GNPPhases(dirloc)
+
 sim.generate()
 sim.plot(SAVE_DIR+'phasemap.png')
 
 # Specify the Neural Process model
+if SIMULATOR=="goldnano":
+    N_LATENT = 2
+    PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/results_pretrain/trained_model.pt"
+else:
+    N_LATENT = 3
+    PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/phasemaps/pretrain/trained_model.pt"
+
 np_model = NeuralProcess(1, 1, 50, N_LATENT, 50).to(device)
-PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/phasemaps/pretrain/trained_model.pt"
 np_model.load_state_dict(torch.load(PRETRAIN_LOC, map_location=device))
 
 test_function = PhaseMappingTestFunction(sim=sim)
@@ -57,17 +71,16 @@ standard_bounds[0] = 1e-5
 train_x = init_x
 train_y = init_y
 
-model_name = "gp"
-if model_name=="gp":
+if MODEL_NAME=="gp":
     model_args = {"model":"gp"}
-elif model_name=="dkl":
+elif MODEL_NAME=="dkl":
     model_args = {"model": "dkl",
     "regnet_dims": [32,32,32],
     "regnet_activation": "tanh",
     "pretrain_steps": 1000,
     "train_steps": 1000
     }
-gp_model = initialize_model(model_name, model_args, input_dim, output_dim, device)
+gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device)
 
 t = time.time()
 for i in range(N_ITERATIONS):
