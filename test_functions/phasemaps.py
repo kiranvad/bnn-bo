@@ -37,4 +37,3 @@ class PhaseMappingTestFunction:
         return z  
 
     __call__ = evaluate_true 
-

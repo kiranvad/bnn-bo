@@ -31,6 +31,14 @@ def from_comp_to_spectrum(test_function, gp_model, np_model, c):
 
         return mu, std  
 
+def get_twod_grid(n_grid, bounds):
+    x = np.linspace(bounds[0,0],bounds[1,0], n_grid)
+    y = np.linspace(bounds[0,1],bounds[1,1], n_grid)
+    X,Y = np.meshgrid(x,y)
+    points = np.vstack([X.ravel(), Y.ravel()]).T 
+
+    return points
+
 # plot samples in the composition grid of p(y|c)
 def _inset_spectra(c, t, mu, sigma, ax, show_sigma=True):
         loc_ax = ax.transLimits.transform(c)
@@ -64,6 +72,7 @@ def plot_iteration(query_idx, test_function, train_x, gp_model, np_model, acquis
               ['B1', 'B2', 'C', 'C']
               ]
     C_train = test_function.sim.points
+    C_grid = get_twod_grid(20, test_function.bounds.cpu().numpy())
     fig, axs = plt.subplot_mosaic(layout, figsize=(4*4, 4*2))
     fig.subplots_adjust(wspace=0.5, hspace=0.5)
     x_ = train_x.cpu().numpy()
@@ -71,10 +80,10 @@ def plot_iteration(query_idx, test_function, train_x, gp_model, np_model, acquis
     axs['A1'].set_xlabel('C1', fontsize=20)
     axs['A1'].set_ylabel('C2', fontsize=20)    
     axs['A1'].set_title('C sampling')
-    normalized_C_train = normalize(torch.tensor(C_train).to(train_x), test_function.bounds.to(train_x))
+    normalized_C_grid = normalize(torch.tensor(C_grid).to(train_x), test_function.bounds.to(train_x))
     with torch.no_grad():
-        acq_values = acquisition(normalized_C_train.reshape(len(C_train),1,2)).cpu().numpy()
-    axs['A2'].tricontourf(C_train[:,0], C_train[:,1], acq_values, cmap='plasma')
+        acq_values = acquisition(normalized_C_grid.reshape(len(C_grid),1,2)).cpu().numpy()
+    axs['A2'].tricontourf(C_grid[:,0], C_grid[:,1], acq_values, cmap='plasma')
     axs['A2'].set_title('utility')
     axs['A2'].set_xlabel('C1', fontsize=20)
     axs['A2'].set_ylabel('C2', fontsize=20) 

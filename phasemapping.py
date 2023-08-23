@@ -23,8 +23,8 @@ BATCH_SIZE = 4
 N_INIT_POINTS = 2
 N_ITERATIONS = 10
 RANDOM_SEED = 2158
-MODEL_NAME = "dkl"
-SIMULATOR = "goldnano"
+MODEL_NAME = "gp"
+SIMULATOR = "parabolic"
 SAVE_DIR = './results/phasemaps/%s_%s/'%(SIMULATOR, MODEL_NAME)
 if os.path.exists(SAVE_DIR):
     shutil.rmtree(SAVE_DIR)
@@ -61,7 +61,7 @@ test_function = PhaseMappingTestFunction(sim=sim)
 input_dim = test_function.dim
 output_dim = N_LATENT 
 
-init_x = initialize_points(test_function, N_INIT_POINTS, output_dim, device)
+init_x = initialize_points(test_function.bounds, N_INIT_POINTS, output_dim, device)
 init_y = test_function(np_model, init_x)
 bounds = test_function.bounds.to(device)
 
@@ -94,13 +94,13 @@ for i in range(N_ITERATIONS):
     print("fit time", model_end - model_start)
     
     acq_start = time.time()
-    acquisition = construct_acqf_by_model(gp_model, normalized_x, train_y, test_function)
+    acquisition = construct_acqf_by_model(gp_model, normalized_x, train_y, output_dim)
     normalized_candidates, acqf_values = optimize_acqf(
         acquisition, 
         standard_bounds, 
         q=BATCH_SIZE, 
-        num_restarts=64, 
-        raw_samples=1024, 
+        num_restarts=128, 
+        raw_samples=512, 
         return_best_only=False,
         sequential=False,
         options={"batch_limit": 1, "maxiter": 10, "with_grad":True}
