@@ -21,7 +21,7 @@ from activephasemap.np.neural_process import NeuralProcess
 
 BATCH_SIZE = 4
 N_INIT_POINTS = 2
-N_ITERATIONS = 10
+N_ITERATIONS = 3
 RANDOM_SEED = 2158
 MODEL_NAME = "gp"
 SIMULATOR = "parabolic"
@@ -80,11 +80,12 @@ elif MODEL_NAME=="dkl":
     "pretrain_steps": 1000,
     "train_steps": 1000
     }
-gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device)
+
 
 t = time.time()
 for i in range(N_ITERATIONS):
     print("\niteration %d" % i)
+    gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device)
 
     # fit model on normalized x
     model_start = time.time()

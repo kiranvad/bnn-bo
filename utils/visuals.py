@@ -197,4 +197,55 @@ def plot_phasemap_pred(test_function, gp_model, np_model, fname):
             axs[i].fill_between(test_function.sim.t,mu_-sigma_, 
             mu_+sigma_,alpha=0.2, color='grey')
         plt.savefig(fname)
-        plt.close()
+        plt.close() 
+
+
+""" Visualization tools customized for experimental campaigns """ 
+def plot_gpmodel_expt(test_function, gp_model, np_model, fname):
+    # plot comp to z model predictions and the GP covariance
+    z_dim = np_model.z_dim
+    fig, axs = plt.subplots(2,z_dim, figsize=(4*z_dim, 4*2))
+    fig.subplots_adjust(wspace=0.5, hspace=0.5)
+    C_train = test_function.sim.points
+    y_train = np.asarray(test_function.sim.F)
+    t_ = test_function.sim.t
+    n_train = len(C_train)
+    with torch.no_grad():
+        c = torch.tensor(C_train).to(device)
+        normalized_c = normalize(c, test_function.bounds.to(device))
+        posterior = gp_model.posterior(normalized_c)
+        z_pred = posterior.mean.cpu().numpy()
+
+        t = torch.from_numpy(t_)
+        t = t.repeat(n_train, 1).to(device)
+        y =  torch.from_numpy(y_train).to(device)
+        z_true_mu, z_true_sigma = np_model.xy_to_mu_sigma(t.unsqueeze(2),y.unsqueeze(2))
+        z_true_mu = z_true_mu.cpu().numpy()
+        z_true_sigma = z_true_sigma.cpu().numpy()
+
+        # compare z values from GP and NP models
+        for i in range(z_dim):
+            sns.kdeplot(z_true_mu[:,i], ax=axs[0,i], fill=True, label='NP Model')
+            sns.kdeplot(z_pred[:,i], ax=axs[0,i],fill=True, label='GP Model')
+            axs[0,i].set_xlabel('z_%d'%(i+1)) 
+            axs[0,i].legend()
+
+        # plot the covariance matrix      
+        X,Y = np.meshgrid(np.linspace(min(C_train[:,0]),max(C_train[:,0]),10), 
+        np.linspace(min(C_train[:,1]),max(C_train[:,1]),10))
+        c_grid_np = np.vstack([X.ravel(), Y.ravel()]).T 
+        c_grid = torch.tensor(c_grid_np).to(device)
+        # plot covariance of randomly selected points
+        idx = RNG.choice(range(n_train),size=z_dim, replace=False)  
+        for i, id_ in enumerate(idx):
+            ci = C_train[id_,:].reshape(1, 2)
+            ci = torch.tensor(ci).to(device)
+            Ki = gp_model.get_covaraince(ci, c_grid)
+            axs[1,i].tricontourf(c_grid_np[:,0], c_grid_np[:,1], Ki, cmap='plasma')
+            axs[1,i].scatter(C_train[id_,0], C_train[id_,1], marker='x', s=50, color='k')
+            axs[1,i].set_xlabel('C1')
+            axs[1,i].set_ylabel('C2')    
+
+        plt.savefig(fname)
+        plt.close()        
+    return 
