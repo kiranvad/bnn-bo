@@ -33,7 +33,25 @@ class PhaseMappingTestFunction:
         t = t.repeat(X.shape[0], 1).to(device)
         with torch.no_grad():
             z, _ = np_model.xy_to_mu_sigma(t.unsqueeze(2), spectra.unsqueeze(2))
-
+            print('Training z values : ', z)
         return z  
 
-    __call__ = evaluate_true 
+    __call__ = evaluate_true  
+
+
+class ExperimentalTestFunction:
+    r""" test function class for experiments.
+
+    """
+
+    def __init__(self, sim, bounds, num_objectives=3):
+        r"""
+        Args:
+            sim : simulator class for the experiment
+            dim : The (input) dimension.
+            num_objectives : number of latent dimensions
+        """
+        self.sim = sim 
+        self.dim = len(bounds)
+        self.bounds = torch.tensor(bounds).transpose(-1, -2).to(device)
+        self.num_objectives = num_objectives

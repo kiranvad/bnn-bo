@@ -210,18 +210,23 @@ def plot_gpmodel_expt(test_function, gp_model, np_model, fname):
     y_train = np.asarray(test_function.sim.F)
     t_ = test_function.sim.t
     n_train = len(C_train)
+    X,Y = np.meshgrid(np.linspace(min(C_train[:,0]),max(C_train[:,0]),10), 
+    np.linspace(min(C_train[:,1]),max(C_train[:,1]),10))
+    c_grid_np = np.vstack([X.ravel(), Y.ravel()]).T 
+    c_grid = torch.tensor(c_grid_np).to(device)    
     with torch.no_grad():
-        c = torch.tensor(C_train).to(device)
-        normalized_c = normalize(c, test_function.bounds.to(device))
-        posterior = gp_model.posterior(normalized_c)
-        z_pred = posterior.mean.cpu().numpy()
+        # predict z distribution of p(z|c) approximated by GP
+        normalized_c_grid = normalize(c_grid, test_function.bounds.to(device))
+        posterior = gp_model.posterior(normalized_c_grid)
+        z_pred = posterior.mean.cpu().numpy() 
 
         t = torch.from_numpy(t_)
         t = t.repeat(n_train, 1).to(device)
         y =  torch.from_numpy(y_train).to(device)
+        # predict z distribution estimated by NP 
         z_true_mu, z_true_sigma = np_model.xy_to_mu_sigma(t.unsqueeze(2),y.unsqueeze(2))
         z_true_mu = z_true_mu.cpu().numpy()
-        z_true_sigma = z_true_sigma.cpu().numpy()
+        z_true_sigma = z_true_sigma.cpu().numpy() 
 
         # compare z values from GP and NP models
         for i in range(z_dim):
@@ -230,11 +235,6 @@ def plot_gpmodel_expt(test_function, gp_model, np_model, fname):
             axs[0,i].set_xlabel('z_%d'%(i+1)) 
             axs[0,i].legend()
 
-        # plot the covariance matrix      
-        X,Y = np.meshgrid(np.linspace(min(C_train[:,0]),max(C_train[:,0]),10), 
-        np.linspace(min(C_train[:,1]),max(C_train[:,1]),10))
-        c_grid_np = np.vstack([X.ravel(), Y.ravel()]).T 
-        c_grid = torch.tensor(c_grid_np).to(device)
         # plot covariance of randomly selected points
         idx = RNG.choice(range(n_train),size=z_dim, replace=False)  
         for i, id_ in enumerate(idx):

@@ -1,2 +1,2 @@
 from .sines import SinX
-from .phasemaps import PhaseMappingTestFunction
+from .phasemaps import PhaseMappingTestFunction, ExperimentalTestFunction

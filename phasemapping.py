@@ -20,7 +20,7 @@ from activephasemap.activelearn.simulators import PrabolicPhases, GaussianPhases
 from activephasemap.np.neural_process import NeuralProcess
 
 BATCH_SIZE = 4
-N_INIT_POINTS = 2
+N_INIT_POINTS = 4
 N_ITERATIONS = 3
 RANDOM_SEED = 2158
 MODEL_NAME = "gp"
