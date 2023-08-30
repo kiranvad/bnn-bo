@@ -49,11 +49,31 @@ def _inset_spectra(c, t, mu, sigma, ax, show_sigma=True):
             alpha=0.2, color='grey')
         ins_ax.axis('off')
         
-        return
+        return 
+
+class MinMaxScaler:
+    def __init__(self, min, max):
+        self.min = min 
+        self.max = max 
+        self.range = max-min
+
+    def transform(self, x):
+        return (x-self.min)/self.range
+    
+    def inverse(self, xt):
+        return (self.range*xt)+self.min
+
+def scaled_tickformat(scaler, x, pos):
+    return '%.1f'%scaler.inverse(x)
 
 def plot_gpmodel_grid(ax, test_function, gp_model, np_model,num_grid_spacing=10, **kwargs):
-    c1 = np.linspace(*test_function.bounds[:,0].cpu().numpy(), num=num_grid_spacing)
-    c2 = np.linspace(*test_function.bounds[:,1].cpu().numpy(), num=num_grid_spacing)
+    bounds = test_function.bounds.cpu().numpy()
+    c1 = np.linspace(bounds[0,0], bounds[1,0], num=num_grid_spacing)
+    c2 = np.linspace(bounds[0,1], bounds[1,1], num=num_grid_spacing)
+    scaler_x = MinMaxScaler(bounds[0,0], bounds[1,0])
+    scaler_y = MinMaxScaler(bounds[0,1], bounds[1,1])
+    ax.xaxis.set_major_formatter(lambda x, pos : scaled_tickformat(scaler_x, x, pos))
+    ax.yaxis.set_major_formatter(lambda y, pos : scaled_tickformat(scaler_y, y, pos))
     with torch.no_grad():
         for i in range(10):
             for j in range(10):
@@ -61,7 +81,8 @@ def plot_gpmodel_grid(ax, test_function, gp_model, np_model,num_grid_spacing=10,
                 mu, sigma = from_comp_to_spectrum(test_function, gp_model, np_model, ci)
                 mu_ = mu.cpu().squeeze().numpy()
                 sigma_ = sigma.cpu().squeeze().numpy()
-                _inset_spectra(ci.squeeze(), test_function.sim.t, mu_, sigma_, ax, **kwargs)
+                norm_ci = np.array([scaler_x.transform(c1[i]), scaler_y.transform(c2[j])])
+                _inset_spectra(norm_ci, test_function.sim.t, mu_, sigma_, ax, **kwargs)
     ax.set_xlabel('C1', fontsize=20)
     ax.set_ylabel('C2', fontsize=20)
 

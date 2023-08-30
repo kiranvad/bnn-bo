@@ -17,37 +17,22 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
 torch.manual_seed(21548)
 
+ITERATION = 0
 # hyper-parameters
-MODEL_NAME = "gp"
+MODEL_NAME = "dkl"
 SIMULATOR = "parabolic"
-BATCH_SIZE = 4
+BATCH_SIZE = 7
 N_INIT_POINTS = 4
-N_ITERATIONS = 2
+N_ITERATIONS = 10
 
-SAVE_DIR = './results/expt_data/'
-if os.path.exists(SAVE_DIR):
-    shutil.rmtree(SAVE_DIR)
-os.makedirs(SAVE_DIR)
-PLOT_DIR = SAVE_DIR+'plots/'
-os.makedirs(PLOT_DIR)
-
-# setup a simulator to use as a proxy for experiment
-if SIMULATOR=="parabolic":
-    sim = PrabolicPhases(n_grid=100, use_random_warping=False, noise=True)
-elif SIMULATOR=="gaussians":
-    sim = GaussianPhases(n_grid=100, use_random_warping=False, noise=True)
-elif SIMULATOR=="goldnano":
-    dirloc = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/gold_nano_grid/"
-    sim = GNPPhases(dirloc)
+PLOT_DIR = './results/peptide_GNP/plots_dkl/'
+SAVE_DIR = './results/peptide_GNP/'
+EXPT_DIR = './results/EXPT_DATA/to_hyak/'
 
 """ Set up pretrain NP model """
 # Specify the Neural Process model
-if SIMULATOR=="goldnano":
-    N_LATENT = 2
-    PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/results_pretrain/trained_model.pt"
-else:
-    N_LATENT = 3
-    PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/phasemaps/pretrain/trained_model.pt"
+N_LATENT = 2
+PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/results_pretrain/trained_model.pt"
 
 np_model = NeuralProcess(1, 1, 50, N_LATENT, 50).to(device)
 np_model.load_state_dict(torch.load(PRETRAIN_LOC, map_location=device))
@@ -55,7 +40,7 @@ np_model.load_state_dict(torch.load(PRETRAIN_LOC, map_location=device))
 """ Set up design space bounds """
 input_dim = 2 # dimension of design space
 output_dim = N_LATENT
-_bounds = [(1e-4, 1.0) for _ in range(input_dim)]
+_bounds = [(0.0, 87.0), (0.0,11.0)] # specify actual bounds of the design variables
 bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
 
 """ Create a GP model class for surrogate """
@@ -83,7 +68,7 @@ def featurize_spectra(spectra_all):
     with torch.no_grad():
         z, _ = np_model.xy_to_mu_sigma(t.unsqueeze(2), spectra.unsqueeze(2)) 
 
-    return z  
+    return z 
 
 def run_iteration(comps_all, spectra_all):
     """ Perform a single iteration of active phasemapping.
@@ -103,7 +88,7 @@ def run_iteration(comps_all, spectra_all):
     train_y = featurize_spectra(spectra_all)
     model_start = time.time()
     normalized_x = normalize(train_x, bounds).to(train_x)
-    gp_model.fit_and_save(normalized_x, train_y, SAVE_DIR)
+    gp_model.fit_and_save(normalized_x, train_y, PLOT_DIR)
     model_end = time.time()
     print("fit time", model_end - model_start)
 
@@ -131,38 +116,26 @@ def run_iteration(comps_all, spectra_all):
 
     return new_x, gp_model, acquisition, train_x 
 
-# Set up a synthetic data emulating an experiment
-init_x = initialize_points(bounds, N_INIT_POINTS, output_dim, device)
-np.save(SAVE_DIR+'comps_0.npy', init_x.cpu().numpy())
+# Run phase mapping iterations
 
-for i in range(N_ITERATIONS):
-    # the following line replicates the actual experiment
-    # to test this code, we use a simulator that simply generates spectra
-    # and saves them to folder named spectra_i.xlsx
-    comps_new = np.load(SAVE_DIR+'comps_%d.npy'%i)
-    # spectra should be saved in the following format
-    spectra_new = np.zeros((len(comps_new), sim.n_domain))
-    for j, cj in enumerate(comps_new):
-        spectra_new[j,:] = sim.simulate(cj)
+comps_new = np.load(EXPT_DIR+'comps_%d.npy'%ITERATION)
+sim = PhaseMappingExperiment(ITERATION, EXPT_DIR, _bounds)
+sim.generate()
+sim.plot(PLOT_DIR+'train_spectra_%d.png'%ITERATION)
 
-    df = pd.DataFrame(spectra_new)
-    df.to_excel(SAVE_DIR+'spectra_%d.xlsx'%i, index=False)
-    expt_sim = PhaseMappingExperiment(i, SAVE_DIR, _bounds)
-    expt_sim.generate()
-    test_function = ExperimentalTestFunction(sim=expt_sim, bounds=_bounds)
+test_function = ExperimentalTestFunction(sim=sim, bounds=_bounds)
 
-    # assemble data for surrogate model training  
-    comps_all = test_function.sim.comps 
-    spectra_all = test_function.sim.spectra 
-    print('Data shapes : ', comps_all.shape, spectra_all.shape)
+# assemble data for surrogate model training  
+comps_all = test_function.sim.comps 
+spectra_all = test_function.sim.spectra
+print('Data shapes : ', comps_all.shape, spectra_all.shape)
 
-    # obtain new set of compositions to synthesize
-    new_x, gp_model, acquisition, train_x = run_iteration(comps_all, spectra_all)
-    np.save(SAVE_DIR+'comps_%d.npy'%(i+1), new_x.cpu().numpy()) 
+# obtain new set of compositions to synthesize
+new_x, gp_model, acquisition, train_x = run_iteration(comps_all, spectra_all)
+np.save(SAVE_DIR+'dkl_new_%d.npy'%(ITERATION+1), new_x.cpu().numpy()) 
 
-    # visualize models trained so far
-    expt_sim.plot(PLOT_DIR+'train_spectra_%d.png'%i)
-    plot_iteration(i, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
-    plt.savefig(PLOT_DIR+'itr_%d.png'%i)
-    plt.close()
-    plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%i) 
+# visualize models trained so far
+plot_iteration(ITERATION, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
+plt.savefig(PLOT_DIR+'itr_%d.png'%ITERATION)
+plt.close()
+plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%ITERATION) 
