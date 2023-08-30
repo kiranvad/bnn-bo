@@ -15,19 +15,18 @@ from activephasemap.np.neural_process import NeuralProcess
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
-torch.manual_seed(21548)
+torch.manual_seed(2458)
 
-ITERATION = 0
+ITERATION = 1
 # hyper-parameters
 MODEL_NAME = "gp"
 SIMULATOR = "parabolic"
-BATCH_SIZE = 7
+BATCH_SIZE = 11
 N_INIT_POINTS = 4
-N_ITERATIONS = 10
 
 PLOT_DIR = './results/peptide_GNP/plots_gp/'
 SAVE_DIR = './results/peptide_GNP/'
-EXPT_DIR = './results/EXPT_DATA/to_hyak/'
+EXPT_DIR = './experiments/gp_expt/'
 
 """ Set up pretrain NP model """
 # Specify the Neural Process model
@@ -99,7 +98,7 @@ def run_iteration(comps_all, spectra_all):
         standard_bounds, 
         q=BATCH_SIZE, 
         num_restarts=128, 
-        raw_samples=512, 
+        raw_samples=1024, 
         return_best_only=False,
         sequential=False,
         options={"batch_limit": 1, "maxiter": 10, "with_grad":True}
@@ -118,7 +117,7 @@ def run_iteration(comps_all, spectra_all):
 
 # Run phase mapping iterations
 
-comps_new = np.load(EXPT_DIR+'comps_%d.npy'%ITERATION)
+# comps_new = np.load(EXPT_DIR+'comps_%d.npy'%ITERATION)
 sim = PhaseMappingExperiment(ITERATION, EXPT_DIR, _bounds)
 sim.generate()
 sim.plot(PLOT_DIR+'train_spectra_%d.png'%ITERATION)
@@ -138,4 +137,7 @@ np.save(SAVE_DIR+'gp_new_%d.npy'%(ITERATION+1), new_x.cpu().numpy())
 plot_iteration(ITERATION, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
 plt.savefig(PLOT_DIR+'itr_%d.png'%ITERATION)
 plt.close()
-plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%ITERATION) 
+plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%ITERATION)
+
+torch.save(train_x.cpu(), SAVE_DIR+'gp_train_x.pt')
+torch.save(gp_model.state_dict(), SAVE_DIR+'gp_model.pt')

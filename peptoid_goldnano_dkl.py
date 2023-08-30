@@ -17,17 +17,16 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
 torch.manual_seed(21548)
 
-ITERATION = 0
+ITERATION = 1
 # hyper-parameters
 MODEL_NAME = "dkl"
 SIMULATOR = "parabolic"
-BATCH_SIZE = 7
-N_INIT_POINTS = 4
-N_ITERATIONS = 10
+BATCH_SIZE = 11
 
+# Set up data and plot directories and manually create them to avoid overrides 
 PLOT_DIR = './results/peptide_GNP/plots_dkl/'
 SAVE_DIR = './results/peptide_GNP/'
-EXPT_DIR = './results/EXPT_DATA/to_hyak/'
+EXPT_DIR = './experiments/dkl_expt/'
 
 """ Set up pretrain NP model """
 # Specify the Neural Process model
@@ -139,3 +138,5 @@ plot_iteration(ITERATION, test_function, train_x, gp_model, np_model, acquisitio
 plt.savefig(PLOT_DIR+'itr_%d.png'%ITERATION)
 plt.close()
 plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%ITERATION) 
+
+torch.save(gp_model.state_dict(), SAVE_DIR+'dkl_model.pt')
