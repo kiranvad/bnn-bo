@@ -15,13 +15,13 @@ from activephasemap.np.neural_process import NeuralProcess
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
-torch.manual_seed(21548)
+torch.manual_seed(20245)
 
-ITERATION = 1
+ITERATION = 2
 # hyper-parameters
 MODEL_NAME = "dkl"
 SIMULATOR = "parabolic"
-BATCH_SIZE = 11
+BATCH_SIZE = 22
 
 # Set up data and plot directories and manually create them to avoid overrides 
 PLOT_DIR = './results/peptide_GNP/plots_dkl/'
@@ -98,7 +98,7 @@ def run_iteration(comps_all, spectra_all):
         standard_bounds, 
         q=BATCH_SIZE, 
         num_restarts=128, 
-        raw_samples=512, 
+        raw_samples=1024, 
         return_best_only=False,
         sequential=False,
         options={"batch_limit": 1, "maxiter": 10, "with_grad":True}
@@ -136,7 +136,8 @@ np.save(SAVE_DIR+'dkl_new_%d.npy'%(ITERATION+1), new_x.cpu().numpy())
 # visualize models trained so far
 plot_iteration(ITERATION, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
 plt.savefig(PLOT_DIR+'itr_%d.png'%ITERATION)
-plt.close()
+plt.close()  
 plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%ITERATION) 
 
+torch.save(train_x.cpu(), SAVE_DIR+'dkl_train_x.pt')
 torch.save(gp_model.state_dict(), SAVE_DIR+'dkl_model.pt')
