@@ -200,23 +200,42 @@ def plot_gpmodel(test_function, gp_model, np_model, fname):
     return 
 
 # plot phase map predition
+
+def plot_gpmodel_recon(ax, gp_model, np_model, test_function, c):
+    with torch.no_grad():
+        mu, sigma = from_comp_to_spectrum(test_function, gp_model, np_model, c)
+        mu_ = mu.cpu().squeeze()
+        sigma_ = sigma.cpu().squeeze()
+        ax.plot(test_function.sim.t, mu_)
+        ax.fill_between(test_function.sim.t,mu_-sigma_,mu_+sigma_,
+        alpha=0.2, color='grey')
+
+    return 
+
+def plot_npmodel_recon(ax, np_model, x, y):
+    xt = torch.from_numpy(x.reshape(1,len(x),1)).to(device)
+    yt =  torch.from_numpy(y.reshape(1,len(x),1)).to(device)
+    z_true_mu, z_true_sigma = np_model.xy_to_mu_sigma(xt,yt)
+    mu, std = np_model.xz_to_y(xt, z_true_mu)
+    mu_ = mu.cpu().squeeze()
+    sigma_ = std.cpu().squeeze()
+    ax.plot(x, mu_, alpha=0.05)
+    ax.fill_between(x,mu_-sigma_, mu_+sigma_,alpha=0.2, color='grey')    
+
+    return 
+
 def plot_phasemap_pred(test_function, gp_model, np_model, fname):
     c_dim = test_function.sim.points.shape[1]
     with torch.no_grad():
-        idx = RNG.choice(range(len(test_function.sim.points)),size=10, replace=False)
+        idx = RNG.choice(range(len(test_function.sim.points)),size=3, replace=False)
         # plot comparision of predictions with actual
-        fig, axs = plt.subplots(2,5, figsize=(4*5, 4*2))
-        axs = axs.flatten()
+        fig, axs = plt.subplots(2,3, figsize=(4*3, 4*2))
         for i, id_ in enumerate(idx):
             ci = test_function.sim.points[id_,:].reshape(1, c_dim)        
-            mu, sigma = from_comp_to_spectrum(test_function, gp_model, np_model, ci)
-            mu_ = mu.cpu().squeeze()
-            sigma_ = sigma.cpu().squeeze()
-            f = test_function.sim.F[id_]
-            axs[i].scatter(test_function.sim.t, f, color='k')
-            axs[i].plot(test_function.sim.t, mu_, color='k')
-            axs[i].fill_between(test_function.sim.t,mu_-sigma_, 
-            mu_+sigma_,alpha=0.2, color='grey')
+            for j in [0,1]:
+                axs[j, i].scatter(test_function.sim.t, test_function.sim.F[id_], color='k')
+            plot_gpmodel_recon(axs[0,i], gp_model, np_model, test_function, ci)
+            plot_npmodel_recon(axs[1,i], np_model, test_function.sim.t, test_function.sim.F[id_])
         plt.savefig(fname)
         plt.close() 
 

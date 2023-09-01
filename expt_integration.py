@@ -21,8 +21,8 @@ torch.manual_seed(21548)
 MODEL_NAME = "gp"
 SIMULATOR = "parabolic"
 BATCH_SIZE = 4
-N_INIT_POINTS = 4
-N_ITERATIONS = 2
+N_INIT_POINTS = 5
+N_ITERATIONS = 3
 
 SAVE_DIR = './results/expt_data/'
 if os.path.exists(SAVE_DIR):
@@ -95,7 +95,7 @@ def run_iteration(comps_all, spectra_all):
     so far as input and makes use of other variables defined in this file.
     This makes sure that we can run this function even on a fresh Hyak session.
     """
-    _bounds = [(1e-5, 1.0) for _ in range(input_dim)]
+    _bounds = [(float(1e-5), 1.0) for _ in range(input_dim)]
     standard_bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
     gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device) 
 
@@ -165,4 +165,5 @@ for i in range(N_ITERATIONS):
     plot_iteration(i, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
     plt.savefig(PLOT_DIR+'itr_%d.png'%i)
     plt.close()
-    plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%i) 
+    plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%i)
+    plot_phasemap_pred(test_function, gp_model, np_model, PLOT_DIR+'compare_spectra_pred_%d.png'%i) 

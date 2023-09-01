@@ -17,12 +17,11 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
 torch.manual_seed(2458)
 
-ITERATION = 1
+ITERATION = 2
 # hyper-parameters
 MODEL_NAME = "gp"
 SIMULATOR = "parabolic"
 BATCH_SIZE = 11
-N_INIT_POINTS = 4
 
 PLOT_DIR = './results/peptide_GNP/plots_gp/'
 SAVE_DIR = './results/peptide_GNP/'
@@ -79,7 +78,7 @@ def run_iteration(comps_all, spectra_all):
     so far as input and makes use of other variables defined in this file.
     This makes sure that we can run this function even on a fresh Hyak session.
     """
-    _bounds = [(1e-5, 1.0) for _ in range(input_dim)]
+    _bounds = [(0.0001, 1.0) for _ in range(input_dim)]
     standard_bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
     gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device) 
 
@@ -138,6 +137,7 @@ plot_iteration(ITERATION, test_function, train_x, gp_model, np_model, acquisitio
 plt.savefig(PLOT_DIR+'itr_%d.png'%ITERATION)
 plt.close()
 plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%ITERATION)
+plot_phasemap_pred(test_function, gp_model, np_model, PLOT_DIR+'compare_spectra_pred.png')
 
 torch.save(train_x.cpu(), SAVE_DIR+'gp_train_x.pt')
 torch.save(gp_model.state_dict(), SAVE_DIR+'gp_model.pt')

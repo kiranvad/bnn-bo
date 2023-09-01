@@ -62,7 +62,7 @@ def featurize_spectra(spectra_all):
     spectra = torch.zeros((num_samples, n_domain)).to(device)
     for i, si in enumerate(spectra_all):
         spectra[i] = torch.tensor(si).to(device)
-    t = torch.linspace(0, 1, n_domain)
+    t = torch.linspace(0.0, 1.0, n_domain)
     t = t.repeat(num_samples, 1).to(device)
     with torch.no_grad():
         z, _ = np_model.xy_to_mu_sigma(t.unsqueeze(2), spectra.unsqueeze(2)) 
@@ -79,7 +79,7 @@ def run_iteration(comps_all, spectra_all):
     so far as input and makes use of other variables defined in this file.
     This makes sure that we can run this function even on a fresh Hyak session.
     """
-    _bounds = [(1e-5, 1.0) for _ in range(input_dim)]
+    _bounds = [(0.0, 1.0) for _ in range(input_dim)]
     standard_bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
     gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device) 
 
@@ -97,8 +97,8 @@ def run_iteration(comps_all, spectra_all):
         acquisition, 
         standard_bounds, 
         q=BATCH_SIZE, 
-        num_restarts=128, 
-        raw_samples=1024, 
+        num_restarts=5, 
+        raw_samples=16, 
         return_best_only=False,
         sequential=False,
         options={"batch_limit": 1, "maxiter": 10, "with_grad":True}
@@ -138,6 +138,7 @@ plot_iteration(ITERATION, test_function, train_x, gp_model, np_model, acquisitio
 plt.savefig(PLOT_DIR+'itr_%d.png'%ITERATION)
 plt.close()  
 plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%ITERATION) 
+plot_phasemap_pred(test_function, gp_model, np_model, PLOT_DIR+'compare_spectra_pred_%d.png'%ITERATION)
 
 torch.save(train_x.cpu(), SAVE_DIR+'dkl_train_x.pt')
 torch.save(gp_model.state_dict(), SAVE_DIR+'dkl_model.pt')

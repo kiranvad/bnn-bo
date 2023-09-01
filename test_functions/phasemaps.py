@@ -20,7 +20,7 @@ class PhaseMappingTestFunction:
         """
         self.sim = sim 
         self.dim = dim
-        self._bounds = [(1e-4, 1.0) for _ in range(self.dim)]
+        self._bounds = [(0.0001, 1.0) for _ in range(self.dim)]
         self.bounds = torch.tensor(self._bounds).transpose(-1, -2).to(device)
         self.num_objectives = num_objectives
 
@@ -33,8 +33,7 @@ class PhaseMappingTestFunction:
         t = t.repeat(X.shape[0], 1).to(device)
         with torch.no_grad():
             z, _ = np_model.xy_to_mu_sigma(t.unsqueeze(2), spectra.unsqueeze(2))
-            print('Training z values : ', z)
-        return z  
+        return z, spectra  
 
     __call__ = evaluate_true  
 

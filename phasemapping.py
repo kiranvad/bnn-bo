@@ -17,7 +17,9 @@ from models import SingleTaskGP, MultiTaskGP, SingleTaskDKL, MultiTaskDKL
 from test_functions import PhaseMappingTestFunction
 from utils import *
 from activephasemap.activelearn.simulators import PrabolicPhases, GaussianPhases, GNPPhases
-from activephasemap.np.neural_process import NeuralProcess
+from activephasemap.np.neural_process import NeuralProcess 
+from activephasemap.activelearn.surrogates import update_npmodel
+from activephasemap.activelearn.pipeline import ActiveLearningDataset
 
 BATCH_SIZE = 4
 N_INIT_POINTS = 4
@@ -62,7 +64,7 @@ input_dim = test_function.dim
 output_dim = N_LATENT 
 
 init_x = initialize_points(test_function.bounds, N_INIT_POINTS, output_dim, device)
-init_y = test_function(np_model, init_x)
+init_y, spectra = test_function(np_model, init_x)
 bounds = test_function.bounds.to(device)
 
 standard_bounds = torch.ones(2, test_function.dim).to(device)
@@ -84,6 +86,10 @@ elif MODEL_NAME=="dkl":
 
 t = time.time()
 for i in range(N_ITERATIONS):
+    if i==0:
+        data = ActiveLearningDataset(train_x,spectra)
+    else:
+        data.update(new_x, new_spectra)
     print("\niteration %d" % i)
     gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device)
 
@@ -116,13 +122,14 @@ for i in range(N_ITERATIONS):
     candidates = unnormalize(normalized_candidates.detach(), bounds=bounds)
     new_x = candidates[best_index].to(train_x)
     # evaluate new y values and save
-    new_y = test_function(np_model, new_x)
+    new_y, new_spectra = test_function(np_model, new_x)
 
     if np.remainder(100*(i)/N_ITERATIONS,10)==0:
         plot_iteration(i, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
         plt.savefig(SAVE_DIR+'itr_%d.png'%i)
         plt.close()
-        plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)   
+        plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)
+        np_model, np_loss = update_npmodel(test_function.sim.t, np_model, data)   
 
     del acqf_values
     del normalized_candidates
