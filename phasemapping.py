@@ -1,12 +1,5 @@
-import argparse
-import json
-import os
-import sys
-import time
-import traceback
-import shutil
+import os, sys, time, shutil, pdb
 from datetime import datetime
-import pdb
 import numpy as np
 
 import torch
@@ -67,8 +60,8 @@ init_x = initialize_points(test_function.bounds, N_INIT_POINTS, output_dim, devi
 init_y, spectra = test_function(np_model, init_x)
 bounds = test_function.bounds.to(device)
 
-standard_bounds = torch.ones(2, test_function.dim).to(device)
-standard_bounds[0] = 1e-5
+_bounds = [(0.00001, 0.9995) for _ in range(input_dim)]
+standard_bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
 
 train_x = init_x
 train_y = init_y
@@ -96,7 +89,9 @@ for i in range(N_ITERATIONS):
     # fit model on normalized x
     model_start = time.time()
     normalized_x = normalize(train_x, bounds).to(train_x)
-    gp_model.fit_and_save(normalized_x, train_y, SAVE_DIR)
+    gp_model.fit_and_save(normalized_x, train_y, SAVE_DIR) 
+    # for key, value in gp_model.state_dict().items(): 
+    #     print(key, value)
     model_end = time.time()
     print("fit time", model_end - model_start)
     
@@ -106,8 +101,8 @@ for i in range(N_ITERATIONS):
         acquisition, 
         standard_bounds, 
         q=BATCH_SIZE, 
-        num_restarts=128, 
-        raw_samples=512, 
+        num_restarts=8, 
+        raw_samples=16, 
         return_best_only=False,
         sequential=False,
         options={"batch_limit": 1, "maxiter": 10, "with_grad":True}
