@@ -15,7 +15,7 @@ from activephasemap.np.neural_process import NeuralProcess
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
-torch.manual_seed(20245)
+# torch.manual_seed(20245)
 
 ITERATION = 2
 # hyper-parameters
@@ -79,7 +79,7 @@ def run_iteration(comps_all, spectra_all):
     so far as input and makes use of other variables defined in this file.
     This makes sure that we can run this function even on a fresh Hyak session.
     """
-    _bounds = [(0.0, 1.0) for _ in range(input_dim)]
+    _bounds = [(0.00001, 0.9995) for _ in range(input_dim)]
     standard_bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
     gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device) 
 
