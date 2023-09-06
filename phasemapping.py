@@ -16,7 +16,7 @@ from activephasemap.activelearn.pipeline import ActiveLearningDataset
 
 BATCH_SIZE = 4
 N_INIT_POINTS = 4
-N_ITERATIONS = 3
+N_ITERATIONS = 10
 RANDOM_SEED = 2158
 MODEL_NAME = "gp"
 SIMULATOR = "parabolic"
@@ -28,7 +28,7 @@ print('Saving the results to %s'%SAVE_DIR)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
-torch.manual_seed(RANDOM_SEED)
+# torch.manual_seed(RANDOM_SEED)
 
 if SIMULATOR=="parabolic":
     sim = PrabolicPhases(n_grid=100, use_random_warping=False, noise=True)
@@ -120,11 +120,13 @@ for i in range(N_ITERATIONS):
     new_y, new_spectra = test_function(np_model, new_x)
 
     if np.remainder(100*(i)/N_ITERATIONS,10)==0:
+        np_model, np_loss = update_npmodel(test_function.sim.t, np_model, data)
         plot_iteration(i, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
         plt.savefig(SAVE_DIR+'itr_%d.png'%i)
         plt.close()
         plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)
-        np_model, np_loss = update_npmodel(test_function.sim.t, np_model, data)   
+        plot_phasemap_pred(test_function, gp_model, np_model, SAVE_DIR+'compare_spectra_pred_%d.png'%i)
+
 
     del acqf_values
     del normalized_candidates

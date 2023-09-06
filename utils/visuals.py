@@ -206,9 +206,9 @@ def plot_gpmodel_recon(ax, gp_model, np_model, test_function, c):
         mu, sigma = from_comp_to_spectrum(test_function, gp_model, np_model, c)
         mu_ = mu.cpu().squeeze()
         sigma_ = sigma.cpu().squeeze()
-        ax.plot(test_function.sim.t, mu_)
+        ax.plot(test_function.sim.t, mu_, label="GP pred.")
         ax.fill_between(test_function.sim.t,mu_-sigma_,mu_+sigma_,
-        alpha=0.2, color='grey')
+        alpha=0.2, color='grey', label="GP Unc.")
 
     return 
 
@@ -219,8 +219,8 @@ def plot_npmodel_recon(ax, np_model, x, y):
     mu, std = np_model.xz_to_y(xt, z_true_mu)
     mu_ = mu.cpu().squeeze()
     sigma_ = std.cpu().squeeze()
-    ax.plot(x, mu_, alpha=0.05)
-    ax.fill_between(x,mu_-sigma_, mu_+sigma_,alpha=0.2, color='grey')    
+    ax.plot(x, mu_, alpha=0.05, label='NP pred.')
+    ax.fill_between(x,mu_-sigma_, mu_+sigma_,alpha=0.2, color='grey', label="NP Unc.")    
 
     return 
 
@@ -232,10 +232,11 @@ def plot_phasemap_pred(test_function, gp_model, np_model, fname):
         fig, axs = plt.subplots(2,3, figsize=(4*3, 4*2))
         for i, id_ in enumerate(idx):
             ci = test_function.sim.points[id_,:].reshape(1, c_dim)        
-            for j in [0,1]:
-                axs[j, i].scatter(test_function.sim.t, test_function.sim.F[id_], color='k')
             plot_gpmodel_recon(axs[0,i], gp_model, np_model, test_function, ci)
             plot_npmodel_recon(axs[1,i], np_model, test_function.sim.t, test_function.sim.F[id_])
+            for j in [0,1]:
+                axs[j, i].scatter(test_function.sim.t, test_function.sim.F[id_], color='k', label="Data")
+                axs[j, i].legend()
         plt.savefig(fname)
         plt.close() 
 

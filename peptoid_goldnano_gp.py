@@ -12,6 +12,9 @@ from test_functions import ExperimentalTestFunction
 from utils import *
 from activephasemap.activelearn.simulators import PrabolicPhases, PhaseMappingExperiment
 from activephasemap.np.neural_process import NeuralProcess
+from activephasemap.activelearn.surrogates import update_npmodel
+from activephasemap.activelearn.pipeline import ActiveLearningDataset
+from activephasemap.activelearn.visuals import plot_npmodel
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
@@ -53,6 +56,11 @@ elif MODEL_NAME=="dkl":
     }
 
 """ Helper functions """
+def fit_npmodel(np_model, test_function, comps, spectra):
+    data = ActiveLearningDataset(comps,spectra) 
+    np_model_updated, _ = update_npmodel(test_function.sim.t, np_model, data) 
+
+    return np_model_updated
 
 def featurize_spectra(spectra_all):
     """ Obtain latent space embedding from spectra.
@@ -78,7 +86,7 @@ def run_iteration(comps_all, spectra_all):
     so far as input and makes use of other variables defined in this file.
     This makes sure that we can run this function even on a fresh Hyak session.
     """
-    _bounds = [(0.0001, 1.0) for _ in range(input_dim)]
+    _bounds = [(0.0, 1.0) for _ in range(input_dim)]
     standard_bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
     gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device) 
 
@@ -127,6 +135,10 @@ test_function = ExperimentalTestFunction(sim=sim, bounds=_bounds)
 comps_all = test_function.sim.comps 
 spectra_all = test_function.sim.spectra
 print('Data shapes : ', comps_all.shape, spectra_all.shape)
+
+# update the pretrained model from collected data
+np_model = fit_npmodel(np_model, test_function, comps_all, spectra_all)
+plot_npmodel(test_function.sim.t, N_LATENT, np_model, PLOT_DIR+'npmodel_itr_%d.png'%ITERATION)
 
 # obtain new set of compositions to synthesize
 new_x, gp_model, acquisition, train_x = run_iteration(comps_all, spectra_all)
