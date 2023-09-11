@@ -38,24 +38,24 @@ np_model = NeuralProcess(1, 1, 50, N_LATENT, 50).to(device)
 np_model.load_state_dict(torch.load(PRETRAIN_LOC, map_location=device))
 
 """ Set up design space bounds """
-input_dim = 2 # dimension of design space
+input_dim = 3 # dimension of design space
 output_dim = N_LATENT
 _bounds = [(0.0, 87.0), (0.0,11.0)] # specify actual bounds of the design variables
 bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
 
 """ Create a GP model class for surrogate """
 model_args = {"model": "dkl",
-    "regnet_dims": [16,16,16],
+    "regnet_dims": [32,32,32],
     "regnet_activation": "tanh",
     "pretrain_steps": 0,
-    "train_steps": 5000
+    "train_steps": 1000
     }
 
 """ Helper functions """
 
 def fit_npmodel(np_model, test_function, comps, spectra):
     data = ActiveLearningDataset(comps,spectra) 
-    np_model_updated, _ = update_npmodel(test_function.sim.t, np_model, data, lr=2e-3) 
+    np_model_updated, _ = update_npmodel(test_function.sim.t, np_model, data, lr=1e-3) 
 
     return np_model_updated
 
@@ -101,8 +101,8 @@ def run_iteration(comps_all, spectra_all):
         acquisition, 
         standard_bounds, 
         q=BATCH_SIZE, 
-        num_restarts=5, 
-        raw_samples=16, 
+        num_restarts=128, 
+        raw_samples=1024, 
         return_best_only=False,
         sequential=False,
         options={"batch_limit": 1, "maxiter": 10, "with_grad":True}
@@ -121,7 +121,6 @@ def run_iteration(comps_all, spectra_all):
 
 # Run phase mapping iterations
 
-comps_new = np.load(EXPT_DIR+'comps_%d.npy'%ITERATION)
 sim = PhaseMappingExperiment(ITERATION, EXPT_DIR, _bounds)
 sim.generate()
 

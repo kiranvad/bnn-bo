@@ -243,6 +243,7 @@ class MultiTaskDKL(Model):
         posterior_transform: Optional[Callable[[Posterior], Posterior]] = None,
         **kwargs: Any,
     ) -> Posterior:
+        print(X.shape)
         return self.gp.posterior(X, output_indices, observation_noise, posterior_transform, **kwargs)
 
     @property
