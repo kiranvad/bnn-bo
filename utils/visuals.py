@@ -40,7 +40,7 @@ def get_twod_grid(n_grid, bounds):
     return points
 
 # plot samples in the composition grid of p(y|c)
-def _inset_spectra(c, t, mu, sigma, ax, show_sigma=True):
+def _inset_spectra(c, t, mu, sigma, ax, show_sigma=False):
         loc_ax = ax.transLimits.transform(c)
         ins_ax = ax.inset_axes([loc_ax[0],loc_ax[1],0.1,0.1])
         ins_ax.plot(t, mu)
@@ -87,6 +87,22 @@ def plot_gpmodel_grid(ax, test_function, gp_model, np_model,num_grid_spacing=10,
     ax.set_ylabel('C2', fontsize=20)
 
     return  
+
+def plot_experiment(test_function):
+    bounds = test_function.bounds.cpu().numpy()
+    fig, ax = plt.subplots()
+    scaler_x = MinMaxScaler(bounds[0,0], bounds[1,0])
+    scaler_y = MinMaxScaler(bounds[0,1], bounds[1,1])
+    ax.xaxis.set_major_formatter(lambda x, pos : scaled_tickformat(scaler_x, x, pos))
+    ax.yaxis.set_major_formatter(lambda y, pos : scaled_tickformat(scaler_y, y, pos))
+    for ci, si in zip(test_function.sim.comps, test_function.sim.spectra):
+        norm_ci = np.array([scaler_x.transform(ci[0]), scaler_y.transform(ci[1])])
+        _inset_spectra(norm_ci,test_function.sim.t, si,[], ax, show_sigma=False)
+    ax.set_xlabel('C1', fontsize=20)
+    ax.set_ylabel('C2', fontsize=20) 
+    ax.spines[['right', 'top']].set_visible(False)
+
+    return 
 
 def plot_iteration(query_idx, test_function, train_x, gp_model, np_model, acquisition, z_dim):
     layout = [['A1','A2', 'C', 'C'], 
@@ -219,7 +235,7 @@ def plot_npmodel_recon(ax, np_model, x, y):
     mu, std = np_model.xz_to_y(xt, z_true_mu)
     mu_ = mu.cpu().squeeze()
     sigma_ = std.cpu().squeeze()
-    ax.plot(x, mu_, alpha=0.05, label='NP pred.')
+    ax.plot(x, mu_, label='NP pred.')
     ax.fill_between(x,mu_-sigma_, mu_+sigma_,alpha=0.2, color='grey', label="NP Unc.")    
 
     return 

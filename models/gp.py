@@ -2,7 +2,8 @@ from typing import Any, Callable, List, Optional
 
 import botorch
 import torch
-from botorch.fit import fit_gpytorch_mll
+from botorch.fit import fit_gpytorch_mll 
+from botorch.optim.fit import fit_gpytorch_torch
 from botorch.models.model import Model
 from botorch.models.model_list_gp_regression import ModelListGP
 from botorch.models.transforms.outcome import Standardize
@@ -16,6 +17,22 @@ from gpytorch.priors import GammaPrior
 from torch import Tensor
 import pdb
 
+
+def fit_gp_model(train_x, train_y, model, mll, **kwargs):
+    num_epochs = kwargs.pop("num_epochs", 100)
+    optimizer = torch.optim.Adam(model.parameters(), lr=kwargs.pop("lr", 1e-3))
+    model.train()
+    for epoch in range(num_epochs):
+        optimizer.zero_grad()
+        output = model(train_x)
+        loss = - mll(output, train_y)
+        loss.backward()
+        if (epoch + 1) % 10 == 0:
+            print(
+                f"Epoch {epoch+1:>3}/{num_epochs} - Loss: {loss.item():>4.3f} "
+                f"noise: {model.likelihood.noise.item():>4.3f}" 
+            )
+        optimizer.step()
 
 class SingleTaskGP(Model):
 
@@ -53,7 +70,8 @@ class SingleTaskGP(Model):
             train_x, train_y, outcome_transform=Standardize(m=1)).to(train_x)
         mll = ExactMarginalLogLikelihood(
             self.gp.likelihood, self.gp).to(train_x)
-        fit_gpytorch_mll(mll)
+        # fit_gpytorch_mll(mll)
+        fit_gpytorch_torch(mll)
 
     def get_covaraince(self, x, xp):
         cov = self.gp.covar_module(x, xp).to_dense()
@@ -88,7 +106,7 @@ class MultiTaskGP(Model):
     def num_outputs(self) -> int:
         return self.gp.num_outputs
 
-    def fit_and_save(self, train_x, train_y, save_dir):
+    def fit_and_save(self, train_x, train_y, save_dir, **kwargs):
         models = []
         for d in range(self.output_dim):
             models.append(
@@ -98,8 +116,8 @@ class MultiTaskGP(Model):
                     outcome_transform=Standardize(m=1)).to(train_x))
 
         self.gp = ModelListGP(*models)
-        mll = SumMarginalLogLikelihood(self.gp.likelihood, self.gp).to(train_x)
-        fit_gpytorch_mll(mll)
+        self.mll = SumMarginalLogLikelihood(self.gp.likelihood, self.gp).to(train_x)
+        fit_gp_model(train_x, train_y, self.gp, self.mll, **kwargs)
 
     def get_covaraince(self, x, xp):  
         cov = torch.zeros((1,len(xp))).to(xp)

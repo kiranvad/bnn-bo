@@ -20,11 +20,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
 # torch.manual_seed(20245)
 
-ITERATION = 2
+ITERATION = 3
 # hyper-parameters
-MODEL_NAME = "dkl"
-SIMULATOR = "parabolic"
-BATCH_SIZE = 22
+BATCH_SIZE = 11
 
 # Set up data and plot directories and manually create them to avoid overrides 
 PLOT_DIR = './results/peptide_GNP/plots_dkl/'
@@ -46,21 +44,18 @@ _bounds = [(0.0, 87.0), (0.0,11.0)] # specify actual bounds of the design variab
 bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
 
 """ Create a GP model class for surrogate """
-if MODEL_NAME=="gp":
-    model_args = {"model":"gp"}
-elif MODEL_NAME=="dkl":
-    model_args = {"model": "dkl",
-    "regnet_dims": [64,64,64],
+model_args = {"model": "dkl",
+    "regnet_dims": [16,16,16],
     "regnet_activation": "tanh",
-    "pretrain_steps": 1000,
-    "train_steps": 1000
+    "pretrain_steps": 0,
+    "train_steps": 5000
     }
 
 """ Helper functions """
 
 def fit_npmodel(np_model, test_function, comps, spectra):
     data = ActiveLearningDataset(comps,spectra) 
-    np_model_updated, _ = update_npmodel(test_function.sim.t, np_model, data) 
+    np_model_updated, _ = update_npmodel(test_function.sim.t, np_model, data, lr=2e-3) 
 
     return np_model_updated
 
@@ -90,7 +85,7 @@ def run_iteration(comps_all, spectra_all):
     """
     _bounds = [(0.0, 1.0) for _ in range(input_dim)]
     standard_bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
-    gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device) 
+    gp_model = initialize_model("dkl", model_args, input_dim, output_dim, device) 
 
     train_x = torch.from_numpy(comps_all).to(device) 
     train_y = featurize_spectra(spectra_all)
@@ -129,7 +124,6 @@ def run_iteration(comps_all, spectra_all):
 comps_new = np.load(EXPT_DIR+'comps_%d.npy'%ITERATION)
 sim = PhaseMappingExperiment(ITERATION, EXPT_DIR, _bounds)
 sim.generate()
-sim.plot(PLOT_DIR+'train_spectra_%d.png'%ITERATION)
 
 test_function = ExperimentalTestFunction(sim=sim, bounds=_bounds)
 
@@ -137,6 +131,9 @@ test_function = ExperimentalTestFunction(sim=sim, bounds=_bounds)
 comps_all = test_function.sim.comps 
 spectra_all = test_function.sim.spectra
 print('Data shapes : ', comps_all.shape, spectra_all.shape)
+
+plot_experiment(test_function)
+plt.savefig(PLOT_DIR+'train_spectra_%d.png'%ITERATION)
 
 # update the pretrained model from collected data
 np_model = fit_npmodel(np_model, test_function, comps_all, spectra_all)
