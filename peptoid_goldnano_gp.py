@@ -21,7 +21,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
 torch.manual_seed(2458)
 
-ITERATION = 0
+ITERATION = 3
 # hyper-parameters
 BATCH_SIZE = 11
 
@@ -85,7 +85,7 @@ def run_iteration(comps_all, spectra_all):
     train_y = featurize_spectra(spectra_all)
     model_start = time.time()
     normalized_x = normalize(train_x, bounds).to(train_x)
-    gp_model.fit_and_save(normalized_x, train_y, PLOT_DIR, num_epochs=100, lr=1e-3)
+    gp_model.fit_and_save(normalized_x, train_y, PLOT_DIR, num_epochs=1000, lr=1e-1)
     model_end = time.time()
     print("fit time", model_end - model_start)
 
@@ -142,7 +142,7 @@ plot_iteration(ITERATION, test_function, train_x, gp_model, np_model, acquisitio
 plt.savefig(PLOT_DIR+'itr_%d.png'%ITERATION)
 plt.close()
 plot_gpmodel_expt(test_function, gp_model, np_model, PLOT_DIR+'gpmodel_itr_%d.png'%ITERATION)
-plot_phasemap_pred(test_function, gp_model, np_model, PLOT_DIR+'compare_spectra_pred.png')
+plot_phasemap_pred(test_function, gp_model, np_model, PLOT_DIR+'compare_spectra_pred_%d.png'%ITERATION)
 
 torch.save(train_x.cpu(), SAVE_DIR+'gp_train_x.pt')
 torch.save(gp_model.state_dict(), SAVE_DIR+'gp_model.pt')

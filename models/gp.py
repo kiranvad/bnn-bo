@@ -18,20 +18,22 @@ from torch import Tensor
 import pdb
 
 
-def fit_gp_model(train_x, train_y, model, mll, **kwargs):
+def fit_gp_model(model, mll, **kwargs):
     num_epochs = kwargs.pop("num_epochs", 100)
     optimizer = torch.optim.Adam(model.parameters(), lr=kwargs.pop("lr", 1e-3))
     model.train()
     for epoch in range(num_epochs):
         optimizer.zero_grad()
-        output = model(train_x)
-        loss = - mll(output, train_y)
+        output = model(*model.train_inputs)
+        loss = -mll(output, model.train_targets)
         loss.backward()
-        if (epoch + 1) % 10 == 0:
+        if (epoch + 1) % 100 == 0:
             print(
                 f"Epoch {epoch+1:>3}/{num_epochs} - Loss: {loss.item():>4.3f} "
-                f"noise: {model.likelihood.noise.item():>4.3f}" 
             )
+            if kwargs.pop("verbose", 1)>1:
+                for name, param in model.named_parameters():
+                    print(f"{name:>3} : value: {param.data}")
         optimizer.step()
 
 class SingleTaskGP(Model):
@@ -117,7 +119,7 @@ class MultiTaskGP(Model):
 
         self.gp = ModelListGP(*models)
         self.mll = SumMarginalLogLikelihood(self.gp.likelihood, self.gp).to(train_x)
-        fit_gp_model(train_x, train_y, self.gp, self.mll, **kwargs)
+        fit_gp_model(self.gp, self.mll, **kwargs)
 
     def get_covaraince(self, x, xp):  
         cov = torch.zeros((1,len(xp))).to(xp)
