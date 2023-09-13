@@ -13,6 +13,7 @@ from activephasemap.np.neural_process import NeuralProcess
 from activephasemap.np.training import NeuralProcessTrainer
 from activephasemap.np.utils import context_target_split 
 from activephasemap.activelearn.surrogates import NPModelDataset
+import pdb 
 
 SAVE_DIR = './results/pretrain/'
 if os.path.exists(SAVE_DIR):
@@ -30,17 +31,20 @@ num_iterations = 30     # Number iterations to optimize
 r_dim = 50              # Dimension of representation of context points
 z_dim = 2               # Dimension of sampled latent variable
 h_dim = 50              # Dimension of hidden layers in encoder and decoder
-learning_rate = 1e-2    # Learning rate for the Adam optimizer
+learning_rate = 5e-3    # Learning rate for the Adam optimizer
 
 PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/results_pretrain/trained_model.pt"
-EXPT_DIR = './experiments/gp_expt/'
+EXPT_DIR = './experiments/dkl_expt/'
 
 neuralprocess = NeuralProcess(1, 1, r_dim, z_dim, h_dim).to(device)
 neuralprocess.load_state_dict(torch.load(PRETRAIN_LOC, map_location=device))
-
 for name, param in neuralprocess.named_parameters():
-    if not 'hidden_to' in name:
+    if 'hidden_to' in name:
+        print(name)
         param.requires_grad = False
+    elif 'r_to_hidden' in name:
+        print(name)
+        param.requires_grad = False        
 
 # Create dataset
 comps, spectra = [], []
@@ -88,12 +92,13 @@ optimizer = torch.optim.Adam(neuralprocess.parameters(), lr=learning_rate)
 np_trainer = NeuralProcessTrainer(device, neuralprocess, optimizer,
                                   num_context_range=(num_context, num_context),
                                   num_extra_target_range=(num_target, num_target), 
-                                  print_freq=1000)
+                                  print_freq=1000
+                                  )
 
 neuralprocess.training = True
 x_plot = torch.Tensor(np.linspace(0, 1, 100)).to(device)
 x_plot = x_plot.unsqueeze(1).unsqueeze(0)
-np_trainer.train(data_loader, num_iterations, x_plot, savedir=SAVE_DIR+'/itrs/') 
+np_trainer.train(data_loader, num_iterations, x_plot= x_plot, plot_after = 10, savedir=SAVE_DIR+'/itrs/') 
 
 neuralprocess.training = False
 

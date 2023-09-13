@@ -1,6 +1,3 @@
 __pycache__
 build
 *.egg-info
-
-experiment_results 
-botorch

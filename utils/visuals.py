@@ -240,6 +240,20 @@ def plot_npmodel_recon(ax, np_model, x, y):
 
     return 
 
+from activephasemap.np.utils import context_target_split 
+def plot_npmodel_recon_sample(ax, np_model, x, y):
+    xt = torch.from_numpy(x.reshape(1,len(x),1)).to(device)
+    yt =  torch.from_numpy(y.reshape(1,len(x),1)).to(device)
+    x_context, y_context, _, _ = context_target_split(xt, yt, 25, 25)
+    ax.scatter(x_context.squeeze().cpu().numpy(), y_context.squeeze().cpu().numpy(), c='tab:red')
+    ax.plot(x, y, color='tab:red', lw=1.0, label='Data')
+    for i in range(200):
+        # Neural process returns distribution over y_target
+        p_y_pred = np_model(x_context, y_context, xt)
+        ax.plot(x,p_y_pred.loc.cpu().numpy()[0], alpha=0.05, c='b') 
+
+    return 
+
 def plot_phasemap_pred(test_function, gp_model, np_model, fname):
     c_dim = test_function.sim.points.shape[1]
     with torch.no_grad():
@@ -249,9 +263,9 @@ def plot_phasemap_pred(test_function, gp_model, np_model, fname):
         for i, id_ in enumerate(idx):
             ci = test_function.sim.points[id_,:].reshape(1, c_dim)        
             plot_gpmodel_recon(axs[0,i], gp_model, np_model, test_function, ci)
-            plot_npmodel_recon(axs[1,i], np_model, test_function.sim.t, test_function.sim.F[id_])
+            axs[0, i].scatter(test_function.sim.t, test_function.sim.F[id_], color='k', label="Data")
+            plot_npmodel_recon_sample(axs[1,i], np_model, test_function.sim.t, test_function.sim.F[id_])
             for j in [0,1]:
-                axs[j, i].scatter(test_function.sim.t, test_function.sim.F[id_], color='k', label="Data")
                 axs[j, i].legend()
         plt.savefig(fname)
         plt.close() 

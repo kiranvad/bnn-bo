@@ -38,7 +38,7 @@ np_model = NeuralProcess(1, 1, 50, N_LATENT, 50).to(device)
 np_model.load_state_dict(torch.load(PRETRAIN_LOC, map_location=device))
 
 """ Set up design space bounds """
-input_dim = 3 # dimension of design space
+input_dim = 2 # dimension of design space
 output_dim = N_LATENT
 _bounds = [(0.0, 87.0), (0.0,11.0)] # specify actual bounds of the design variables
 bounds = torch.tensor(_bounds).transpose(-1, -2).to(device)
@@ -48,14 +48,14 @@ model_args = {"model": "dkl",
     "regnet_dims": [32,32,32],
     "regnet_activation": "tanh",
     "pretrain_steps": 0,
-    "train_steps": 1000
+    "train_steps": 3000
     }
 
 """ Helper functions """
 
 def fit_npmodel(np_model, test_function, comps, spectra):
     data = ActiveLearningDataset(comps,spectra) 
-    np_model_updated, _ = update_npmodel(test_function.sim.t, np_model, data, lr=1e-3) 
+    np_model_updated, _ = update_npmodel(test_function.sim.t, np_model, data, lr=5e-3) 
 
     return np_model_updated
 
