@@ -21,7 +21,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
 torch.manual_seed(2458)
 
-ITERATION = 3
+ITERATION = 4
 # hyper-parameters
 BATCH_SIZE = 11
 
@@ -49,7 +49,7 @@ model_args = {"model":"gp"}
 """ Helper functions """
 def fit_npmodel(np_model, test_function, comps, spectra):
     data = ActiveLearningDataset(comps,spectra) 
-    np_model_updated, _ = update_npmodel(test_function.sim.t, np_model, data, lr=1e-3) 
+    np_model_updated, _ = update_npmodel(test_function.sim.t, np_model, data, lr=5e-3) 
 
     return np_model_updated
 
