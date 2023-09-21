@@ -20,13 +20,13 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
 # torch.manual_seed(20245)
 
-ITERATION = 4
+ITERATION = 2
 # hyper-parameters
 BATCH_SIZE = 11
-
+ 
 # Set up data and plot directories and manually create them to avoid overrides 
-PLOT_DIR = './results/peptide_GNP/plots_dkl/'
-SAVE_DIR = './results/peptide_GNP/'
+PLOT_DIR = './results/peptide_GNP_v1.1/plots_dkl/'
+SAVE_DIR = './results/peptide_GNP_v1.1/'
 EXPT_DIR = './experiments/dkl_expt/'
 
 """ Set up pretrain NP model """
@@ -48,7 +48,7 @@ model_args = {"model": "dkl",
     "regnet_dims": [32,32,32],
     "regnet_activation": "tanh",
     "pretrain_steps": 0,
-    "train_steps": 3000
+    "train_steps": 1000
     }
 
 """ Helper functions """

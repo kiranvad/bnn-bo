@@ -21,12 +21,12 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
 torch.manual_seed(2458)
 
-ITERATION = 4
+ITERATION = 2
 # hyper-parameters
 BATCH_SIZE = 11
 
-PLOT_DIR = './results/peptide_GNP/plots_gp/'
-SAVE_DIR = './results/peptide_GNP/'
+PLOT_DIR = './results/peptide_GNP_v1.1/plots_gp/'
+SAVE_DIR = './results/peptide_GNP_v1.1/'
 EXPT_DIR = './experiments/gp_expt/'
 
 """ Set up pretrain NP model """
