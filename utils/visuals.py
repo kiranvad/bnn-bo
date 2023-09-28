@@ -88,16 +88,15 @@ def plot_gpmodel_grid(ax, test_function, gp_model, np_model,num_grid_spacing=10,
 
     return  
 
-def plot_experiment(test_function):
-    bounds = test_function.bounds.cpu().numpy()
+def plot_experiment(t, bounds, data):
     fig, ax = plt.subplots()
-    scaler_x = MinMaxScaler(bounds[0,0], bounds[1,0])
-    scaler_y = MinMaxScaler(bounds[0,1], bounds[1,1])
+    scaler_x = MinMaxScaler(bounds[0][0], bounds[0][1])
+    scaler_y = MinMaxScaler(bounds[1][0], bounds[1][1])
     ax.xaxis.set_major_formatter(lambda x, pos : scaled_tickformat(scaler_x, x, pos))
     ax.yaxis.set_major_formatter(lambda y, pos : scaled_tickformat(scaler_y, y, pos))
-    for ci, si in zip(test_function.sim.comps, test_function.sim.spectra):
+    for ci, si in zip(data.x.cpu().numpy(), data.y.cpu().numpy()):
         norm_ci = np.array([scaler_x.transform(ci[0]), scaler_y.transform(ci[1])])
-        _inset_spectra(norm_ci,test_function.sim.t, si,[], ax, show_sigma=False)
+        _inset_spectra(norm_ci, t, si,[], ax, show_sigma=False)
     ax.set_xlabel('C1', fontsize=20)
     ax.set_ylabel('C2', fontsize=20) 
     ax.spines[['right', 'top']].set_visible(False)

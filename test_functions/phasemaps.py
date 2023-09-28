@@ -5,23 +5,21 @@ import pdb
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # create synthetic data
-class PhaseMappingTestFunction:
+class SimulatorTestFunction:
     r"""Base class for phasemapping test functions
 
     """
 
-    def __init__(self, sim, dim = 2, num_objectives=3):
+    def __init__(self, sim, bounds, num_objectives=3):
         r"""
         Args:
-            dim: The (input) dimension.
-            noise_std: Standard deviation of the observation noise.
-            negate: If True, negate the function.
-            bounds: Custom bounds for the function specified as (lower, upper) pairs.
+            sim : simulator class for the experiment
+            bounds : bounds of input dimensions.
+            num_objectives : number of latent dimensions
         """
         self.sim = sim 
-        self.dim = dim
-        self._bounds = [(0.0001, 1.0) for _ in range(self.dim)]
-        self.bounds = torch.tensor(self._bounds).transpose(-1, -2).to(device)
+        self.dim = len(bounds)
+        self.bounds = torch.tensor(bounds).transpose(-1, -2).to(device)
         self.num_objectives = num_objectives
 
     def evaluate_true(self, np_model, X):
