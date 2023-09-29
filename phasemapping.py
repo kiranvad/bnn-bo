@@ -9,17 +9,17 @@ from botorch.utils.transforms import normalize, unnormalize
 from models import SingleTaskGP, MultiTaskGP, SingleTaskDKL, MultiTaskDKL
 from test_functions import SimulatorTestFunction
 from utils import *
-from activephasemap.activelearn.simulators import PrabolicPhases, GaussianPhases, GNPPhases
+from activephasemap.activelearn.simulators import PrabolicPhases, GaussianPhases, GNPPhases, PeptideGNPPhases
 from activephasemap.np.neural_process import NeuralProcess 
 from activephasemap.activelearn.surrogates import update_npmodel
 from activephasemap.activelearn.pipeline import ActiveLearningDataset
 
-BATCH_SIZE = 4
-N_INIT_POINTS = 4
+BATCH_SIZE = 8
+N_INIT_POINTS = 8
 N_ITERATIONS = 10
 RANDOM_SEED = 2158
 MODEL_NAME = "dkl"
-SIMULATOR = "goldnano"
+SIMULATOR = "peptide"
 SAVE_DIR = './results/phasemaps/%s_%s/'%(SIMULATOR, MODEL_NAME)
 if os.path.exists(SAVE_DIR):
     shutil.rmtree(SAVE_DIR)
@@ -37,22 +37,29 @@ elif SIMULATOR=="gaussians":
 elif SIMULATOR=="goldnano":
     dirloc = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/gold_nano_grid/"
     sim = GNPPhases(dirloc)
-
+elif SIMULATOR=="peptide":
+    dirloc = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/peptide_grid/"
+    sim = PeptideGNPPhases(dirloc)    
+    
 sim.generate()
-sim.plot(SAVE_DIR+'phasemap.png')
 
 # Specify the Neural Process model
 if SIMULATOR=="goldnano":
     N_LATENT = 2
     PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/results_pretrain/trained_model.pt"
+    design_space_bounds = [(0.0, 7.38), (0.0,7.27)]
+elif SIMULATOR=="peptide":
+    N_LATENT = 2
+    PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/results_pretrain/trained_model.pt"
+    design_space_bounds = [(0.0, 87.0), (0.0,11.0)] 
 else:
     N_LATENT = 2
     PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/phasemaps/pretrain/trained_model.pt"
+    design_space_bounds = [(0.0, 1.0), (0.0,1.0)]
 
 np_model = NeuralProcess(1, 1, 50, N_LATENT, 50).to(device)
 np_model.load_state_dict(torch.load(PRETRAIN_LOC, map_location=device))
 
-design_space_bounds = [(0.0, 7.38), (0.0,7.27)] # specify actual bounds of the design variables
 test_function = SimulatorTestFunction(sim=sim, bounds=design_space_bounds)
 input_dim = test_function.dim
 output_dim = N_LATENT 
