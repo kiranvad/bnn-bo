@@ -2,6 +2,9 @@ import torch
 import numpy as np 
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib import colormaps 
+from matplotlib.cm import ScalarMappable
 RNG = np.random.default_rng()
 import sys, pdb
 from activephasemap.activelearn.pipeline import utility, from_comp_to_spectrum
@@ -107,6 +110,8 @@ def plot_iteration(query_idx, test_function, train_x, gp_model, np_model, acquis
     layout = [['A1','A2', 'C', 'C'], 
               ['B1', 'B2', 'C', 'C']
               ]
+    
+    # plot selected points
     C_train = test_function.sim.points
     C_grid = get_twod_grid(20, test_function.bounds.cpu().numpy())
     fig, axs = plt.subplot_mosaic(layout, figsize=(4*4, 4*2))
@@ -116,10 +121,19 @@ def plot_iteration(query_idx, test_function, train_x, gp_model, np_model, acquis
     axs['A1'].set_xlabel('C1', fontsize=20)
     axs['A1'].set_ylabel('C2', fontsize=20)    
     axs['A1'].set_title('C sampling')
+
+    # plot acqf
     normalized_C_grid = normalize(torch.tensor(C_grid).to(train_x), test_function.bounds.to(train_x))
     with torch.no_grad():
         acq_values = acquisition(normalized_C_grid.reshape(len(C_grid),1,2)).cpu().numpy()
-    axs['A2'].tricontourf(C_grid[:,0], C_grid[:,1], acq_values, cmap='plasma')
+    cmap = colormaps["magma"]
+    norm = Normalize(vmin=min(acq_values), vmax = max(acq_values))
+    mappable = ScalarMappable(norm=norm, cmap=cmap)
+    axs['A2'].tricontourf(C_grid[:,0], C_grid[:,1], acq_values, cmap=cmap, norm=norm)
+    divider = make_axes_locatable(axs["A2"])
+    cax = divider.append_axes('right', size='5%', pad=0.1)
+    cbar = fig.colorbar(mappable, cax=cax)
+    cbar.ax.set_ylabel('Acqusition value')
     axs['A2'].set_title('utility')
     axs['A2'].set_xlabel('C1', fontsize=20)
     axs['A2'].set_ylabel('C2', fontsize=20) 

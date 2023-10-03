@@ -28,7 +28,9 @@ from gpytorch.module import Module
 from gpytorch.priors import GammaPrior
 from gpytorch.priors.torch_priors import GammaPrior
 from torch import Tensor
-from torch.nn import Module
+from torch.nn import Module 
+
+import numpy as np
 
 class RegNet(torch.nn.Sequential):
     def __init__(self, dimensions, activation, input_dim=1, output_dim=1,
@@ -254,7 +256,7 @@ class MultiTaskDKL(Model):
         return self.gp.num_outputs
     
 
-    def fit_and_save_independent(self, train_x, train_y, save_dir):
+    def fit_and_save_independent(self, x, y, save_dir):     
         models = []
         params = []
         for d in range(self.output_dim):
@@ -289,9 +291,14 @@ class MultiTaskDKL(Model):
                 print(
                     f"Epoch {epoch+1:>3}/{n_epochs} - Loss: {loss.item():>4.3f} "
                 )
-            optimizer.step()
+            optimizer.step() 
 
-    def fit_and_save(self, train_x, train_y, save_dir):
+
+    def fit_and_save(self, x, y, save_dir):
+        train_ind = np.random.randint(0, len(x), int(0.8*len(x)))
+        test_ind = np.setdiff1d(np.arange(len(x)), train_ind)
+        train_x, train_y = x[train_ind,:], y[train_ind,:]
+        test_x, test_y = x[test_ind,:], y[test_ind,:]   
         models = []
         params = []
         for d in range(self.output_dim):
@@ -317,16 +324,25 @@ class MultiTaskDKL(Model):
         self.gp.train()
 
         for epoch in range(n_epochs):
+            self.gp.train()
             optimizer.zero_grad()
             output = self.gp(*[train_x for _ in range(self.output_dim)])
             loss = - mll(output, train_y.transpose(-1, -2))
             loss.backward()
-            # print every 1000 iterations
-            if (epoch + 1) % 1000 == 0:
+            # print every 100 iterations
+            if np.remainder(100*(epoch+1)/n_epochs,10)==0:
                 print(
-                    f"Epoch {epoch+1:>3}/{n_epochs} - Loss: {loss.item():>4.3f} "
+                    f"Epoch {epoch+1:>3}/{n_epochs} - Train Loss: {loss.item():>4.3f} ", end=""
                 )
             optimizer.step()
+            
+            if np.remainder(100*(epoch+1)/n_epochs,10)==0:
+                self.gp.eval()
+                with torch.no_grad():
+                    output = self.gp(*[test_x for _ in range(self.output_dim)])
+                    test_loss = - mll(output, test_y.transpose(-1, -2)) 
+                    print(f" Test Loss: {test_loss.item():>4.3f} ")
+
 
     def get_covaraince(self, x, xp):
         cov = torch.zeros((1,len(xp))).to(xp)

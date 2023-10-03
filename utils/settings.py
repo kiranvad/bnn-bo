@@ -36,7 +36,7 @@ def initialize_points(bounds, n_init_points, output_dim, device):
 
 def construct_acqf_by_model(model, train_x, train_y, num_objectives=1):
     dim = train_y.shape[1]
-    sampler = StochasticSampler(sample_shape=torch.Size([8]))
+    sampler = StochasticSampler(sample_shape=torch.Size([256]))
     if num_objectives==1:
         acqf = qUpperConfidenceBound(model=model, beta=100, sampler=sampler)
     else:

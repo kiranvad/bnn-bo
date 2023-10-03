@@ -16,8 +16,7 @@ from activephasemap.activelearn.pipeline import ActiveLearningDataset
 
 BATCH_SIZE = 8
 N_INIT_POINTS = 8
-N_ITERATIONS = 10
-RANDOM_SEED = 2158
+N_ITERATIONS = 5
 MODEL_NAME = "dkl"
 SIMULATOR = "peptide"
 SAVE_DIR = './results/phasemaps/%s_%s/'%(SIMULATOR, MODEL_NAME)
@@ -28,7 +27,6 @@ print('Saving the results to %s'%SAVE_DIR)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.set_default_dtype(torch.double)
-# torch.manual_seed(RANDOM_SEED)
 
 if SIMULATOR=="parabolic":
     sim = PrabolicPhases(n_grid=100, use_random_warping=False, noise=True)
@@ -104,8 +102,8 @@ for i in range(N_ITERATIONS):
         acquisition, 
         standard_bounds, 
         q=BATCH_SIZE, 
-        num_restarts=8, 
-        raw_samples=16, 
+        num_restarts=20, 
+        raw_samples=1024, 
         return_best_only=False,
         sequential=False,
         options={"batch_limit": 1, "maxiter": 10, "with_grad":True}
@@ -122,11 +120,11 @@ for i in range(N_ITERATIONS):
     # evaluate new y values and save
     new_y, new_spectra = test_function(np_model, new_x)
 
-    if np.remainder(100*(i)/N_ITERATIONS,10)==0:
+    if np.remainder(100*(i+1)/N_ITERATIONS,10)==0:
         plot_experiment(test_function.sim.t, design_space_bounds, data)
         plt.savefig(SAVE_DIR+'train_spectra_%d.png'%i)
         # update np model with new data
-        np_model, np_loss = update_npmodel(test_function.sim.t, np_model, data, num_iterations=75)
+        np_model, np_loss = update_npmodel(test_function.sim.t, np_model, data, num_iterations=75, verbose=False)
         plot_iteration(i, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
         plt.savefig(SAVE_DIR+'itr_%d.png'%i)
         plt.close()
