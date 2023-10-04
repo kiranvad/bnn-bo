@@ -1,36 +1,30 @@
 import torch 
 import numpy as np 
+from scipy import stats
+import seaborn as sns 
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib import colormaps 
 from matplotlib.cm import ScalarMappable
 RNG = np.random.default_rng()
-import sys, pdb
 from activephasemap.activelearn.pipeline import utility, from_comp_to_spectrum
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-from scipy import stats
-import seaborn as sns 
+from activephasemap.np.utils import context_target_split 
 from botorch.utils.transforms import normalize, unnormalize
+import sys, pdb
 
-# Custom utility functions for active learning 
-def predict(model, x, bounds):
-    model.eval()
-    with torch.no_grad():
-        normalized_x = normalize(x, bounds)
-        posterior = model.posterior(normalized_x)
-
-        return posterior.mean.cpu().numpy(), posterior.stddev.cpu().numpy()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def from_comp_to_spectrum(test_function, gp_model, np_model, c):
     with torch.no_grad():
         t_ = test_function.sim.t
         c = torch.tensor(c).to(device)
-        z_sample,_ = predict(gp_model, c, test_function.bounds.to(c))
-        z_sample = torch.tensor(z_sample).to(device)
+        gp_model.eval()
+        normalized_x = normalize(c, test_function.bounds.to(c))
+        posterior = gp_model.posterior(normalized_x)  # based on https://github.com/pytorch/botorch/issues/1110
         t = torch.from_numpy(t_).to(device)
         t = t.repeat(c.shape[0]).view(c.shape[0], len(t_), 1)
-        mu, std = np_model.xz_to_y(t, z_sample)
+        mu, std = np_model.xz_to_y(t, posterior.mean)
 
         return mu, std  
 
@@ -180,9 +174,8 @@ def plot_gpmodel(test_function, gp_model, np_model, fname):
         t = torch.from_numpy(t_)
         t = t.repeat(n_train, 1).to(device)
         y =  torch.from_numpy(y_train).to(device)
-        z_true_mu, z_true_sigma = np_model.xy_to_mu_sigma(t.unsqueeze(2),y.unsqueeze(2))
+        z_true_mu, _ = np_model.xy_to_mu_sigma(t.unsqueeze(2),y.unsqueeze(2))
         z_true_mu = z_true_mu.cpu().numpy()
-        z_true_sigma = z_true_sigma.cpu().numpy()
 
         # compare z values from GP and NP models
         for i in range(z_dim):
@@ -253,7 +246,6 @@ def plot_npmodel_recon(ax, np_model, x, y):
 
     return 
 
-from activephasemap.np.utils import context_target_split 
 def plot_npmodel_recon_sample(ax, np_model, x, y):
     xt = torch.from_numpy(x.reshape(1,len(x),1)).to(device)
     yt =  torch.from_numpy(y.reshape(1,len(x),1)).to(device)

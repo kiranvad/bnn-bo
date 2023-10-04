@@ -17,7 +17,7 @@ from activephasemap.activelearn.pipeline import ActiveLearningDataset
 BATCH_SIZE = 8
 N_INIT_POINTS = 8
 N_ITERATIONS = 5
-MODEL_NAME = "dkl"
+MODEL_NAME = "gp"
 SIMULATOR = "peptide"
 SAVE_DIR = './results/phasemaps/%s_%s/'%(SIMULATOR, MODEL_NAME)
 if os.path.exists(SAVE_DIR):
@@ -90,13 +90,9 @@ for i in range(N_ITERATIONS):
     gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device)
 
     # fit model on normalized x
-    model_start = time.time()
     normalized_x = normalize(train_x, bounds).to(train_x)
     gp_model.fit_and_save(normalized_x, train_y, SAVE_DIR) 
-    model_end = time.time()
-    print("fit time", model_end - model_start)
     
-    acq_start = time.time()
     acquisition = construct_acqf_by_model(gp_model, normalized_x, train_y, output_dim)
     normalized_candidates, acqf_values = optimize_acqf(
         acquisition, 
@@ -104,19 +100,12 @@ for i in range(N_ITERATIONS):
         q=BATCH_SIZE, 
         num_restarts=20, 
         raw_samples=1024, 
-        return_best_only=False,
+        return_best_only=True,
         sequential=False,
         options={"batch_limit": 1, "maxiter": 10, "with_grad":True}
         )
 
-    # calculate acquisition values after rounding
-    acqf_values = acquisition(normalized_candidates)
-    acq_end = time.time()
-    print("acquisition time", acq_end - acq_start)
-
-    best_index = acqf_values.max(dim=0).indices.item()
-    candidates = unnormalize(normalized_candidates.detach(), bounds=bounds)
-    new_x = candidates[best_index].to(train_x)
+    new_x = unnormalize(normalized_candidates.detach(), bounds=bounds)
     # evaluate new y values and save
     new_y, new_spectra = test_function(np_model, new_x)
 
@@ -131,10 +120,6 @@ for i in range(N_ITERATIONS):
         plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)
         plot_phasemap_pred(test_function, gp_model, np_model, SAVE_DIR+'compare_spectra_pred_%d.png'%i)
 
-    del acqf_values
-    del normalized_candidates
-    torch.cuda.empty_cache()
-
     train_x = torch.cat([train_x, new_x])
     train_y = torch.cat([train_y, new_y])
     data.update(new_x, new_spectra)
@@ -147,7 +132,7 @@ plt.savefig(SAVE_DIR+'itr_%d.png'%i)
 plot_phasemap_pred(test_function, gp_model, np_model, SAVE_DIR+'compare_spectra_pred_%d.png'%i)
 plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)   
 
-fig, ax = plt.subplots(figsize=(10,10))
+fig, ax = plt.subplots()
 plot_gpmodel_grid(ax, test_function, gp_model, np_model, show_sigma=False)
 plt.savefig(SAVE_DIR+'phasemap_pred.png')
 
