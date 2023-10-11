@@ -18,7 +18,7 @@ BATCH_SIZE = 8
 N_INIT_POINTS = 8
 N_ITERATIONS = 5
 MODEL_NAME = "gp"
-SIMULATOR = "peptide"
+SIMULATOR = "parabolic"
 SAVE_DIR = './results/phasemaps/%s_%s/'%(SIMULATOR, MODEL_NAME)
 if os.path.exists(SAVE_DIR):
     shutil.rmtree(SAVE_DIR)
@@ -51,7 +51,7 @@ elif SIMULATOR=="peptide":
     PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/results_pretrain/trained_model.pt"
     design_space_bounds = [(0.0, 87.0), (0.0,11.0)] 
 else:
-    N_LATENT = 2
+    N_LATENT = 3
     PRETRAIN_LOC = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/phasemaps/pretrain/trained_model.pt"
     design_space_bounds = [(0.0, 1.0), (0.0,1.0)]
 
