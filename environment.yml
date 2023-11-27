@@ -1,6 +1,7 @@
-name: saxspy
+name: activephasemap
 channels:
   - defaults
+  - pytorch
 dependencies:
   - pip
   - pip:
@@ -9,6 +10,6 @@ dependencies:
     - openpyxl==3.1.2
     - pandas==2.0.3
     - seaborn==0.12.2
-    - torchvision==0.15.2
+    - torchvision==0.16.1
 
-prefix: /mmfs1/home/kiranvad/kiranvad/envs/saxspy
+prefix: /mmfs1/home/kiranvad/kiranvad/envs/activephasemap

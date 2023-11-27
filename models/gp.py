@@ -3,7 +3,7 @@ from typing import Any, Callable, List, Optional
 import botorch
 import torch
 from botorch.fit import fit_gpytorch_mll 
-from botorch.optim.fit import fit_gpytorch_torch
+from botorch.optim.fit import fit_gpytorch_mll_torch
 from botorch.models.model import Model
 from botorch.models.model_list_gp_regression import ModelListGP
 from botorch.models.transforms.outcome import Standardize
@@ -72,8 +72,7 @@ class SingleTaskGP(Model):
             train_x, train_y, outcome_transform=Standardize(m=1)).to(train_x)
         mll = ExactMarginalLogLikelihood(
             self.gp.likelihood, self.gp).to(train_x)
-        # fit_gpytorch_mll(mll)
-        fit_gpytorch_torch(mll)
+        fit_gpytorch_mll_torch(mll)
 
     def get_covaraince(self, x, xp):
         cov = self.gp.covar_module(x, xp).to_dense()

@@ -11,6 +11,24 @@ Install the project:
 pip install -e .
 ````
 
+If the above mode of installation does not work, please follow the instructions below:
+1. create a conda environment using:
+```bash
+conda create -p /env/location/ python=3.11 -y
+```
+
+2. Install matplotlib, pandas, seaborn, openpyxl:
+```bash
+pip install matplotlib
+pip install pandas openpyxl
+pip install seaborn
+```
+
+3. Install botorch (that install all the required pytroch packages):
+```bash
+pip install botorch
+```
+
 ## Running experiments
 ````
 python <example_script>.py
