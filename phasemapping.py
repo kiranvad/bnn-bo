@@ -14,12 +14,16 @@ from activephasemap.np.neural_process import NeuralProcess
 from activephasemap.activelearn.surrogates import update_npmodel
 from activephasemap.activelearn.pipeline import ActiveLearningDataset
 
-BATCH_SIZE = 8
-N_INIT_POINTS = 8
-N_ITERATIONS = 5
-MODEL_NAME = "gp"
-SIMULATOR = "parabolic"
-SAVE_DIR = './results/phasemaps/%s_%s/'%(SIMULATOR, MODEL_NAME)
+BATCH_SIZE = 4
+N_INIT_POINTS = 5
+N_ITERATIONS = 10
+MODEL_NAME = "dkl"
+SIMULATOR = "peptide"
+TEMPERATURE = 55 # available [15,27,35,55]
+if not SIMULATOR=="peptide":
+    SAVE_DIR = './results/phasemaps/%s_%s/'%(SIMULATOR, MODEL_NAME)
+else:
+    SAVE_DIR = './results/phasemaps/%s_%s/%d/'%(SIMULATOR, MODEL_NAME, TEMPERATURE)
 if os.path.exists(SAVE_DIR):
     shutil.rmtree(SAVE_DIR)
 os.makedirs(SAVE_DIR)
@@ -36,7 +40,7 @@ elif SIMULATOR=="goldnano":
     dirloc = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/gold_nano_grid/"
     sim = GNPPhases(dirloc)
 elif SIMULATOR=="peptide":
-    dirloc = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/peptide_grid/"
+    dirloc = "/mmfs1/home/kiranvad/kiranvad/neural-processes/examples/UV_VIS/peptide_grid/%d/"%TEMPERATURE
     sim = PeptideGNPPhases(dirloc)    
     
 sim.generate()
