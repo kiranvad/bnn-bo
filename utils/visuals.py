@@ -11,6 +11,7 @@ RNG = np.random.default_rng()
 from activephasemap.activelearn.pipeline import utility, from_comp_to_spectrum
 from activephasemap.np.utils import context_target_split 
 from botorch.utils.transforms import normalize, unnormalize
+from autophasemap import compute_elastic_kmeans, BaseDataSet, compute_BIC
 import sys, pdb
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -37,10 +38,10 @@ def get_twod_grid(n_grid, bounds):
     return points
 
 # plot samples in the composition grid of p(y|c)
-def _inset_spectra(c, t, mu, sigma, ax, show_sigma=False):
+def _inset_spectra(c, t, mu, sigma, ax, show_sigma=False, **kwargs):
         loc_ax = ax.transLimits.transform(c)
         ins_ax = ax.inset_axes([loc_ax[0],loc_ax[1],0.1,0.1])
-        ins_ax.plot(t, mu)
+        ins_ax.plot(t, mu, **kwargs)
         if show_sigma:
             ins_ax.fill_between(t,mu-sigma, mu+sigma,
             alpha=0.2, color='grey')
@@ -325,3 +326,66 @@ def plot_gpmodel_expt(test_function, gp_model, np_model, fname):
         plt.savefig(fname)
         plt.close()        
     return 
+
+
+class AutoPhaseMapDataSet(BaseDataSet):
+    def __init__(self, C, q, Iq, n_domain = 100):
+        super().__init__(n_domain=n_domain)
+        self.t = np.linspace(0,1, num=self.n_domain)
+        self.q = q
+        self.N = C.shape[0]
+        self.Iq = Iq
+        self.C = C
+    
+    def generate(self, process=None):
+        if process=="normalize":
+            self.F = [self.Iq[i,:]/self.l2norm(self.q, self.Iq[i,:]) for i in range(self.N)]
+        elif process=="smoothen":
+            self.F = [self._smoothen(self.Iq[i,:]/self.l2norm(self.q, self.Iq[i,:]), window_length=7, polyorder=3) for i in range(self.N)]
+        elif process is None:
+            self.F = [self.Iq[i,:] for i in range(self.N)]
+            
+        return
+
+def plot_autophasemap(test_function, gp_model, np_model, fname):
+    bounds = test_function.bounds.cpu().numpy()
+    grid_comps = get_twod_grid(10, bounds = bounds)
+    scaler_x = MinMaxScaler(bounds[0,0], bounds[1,0])
+    scaler_y = MinMaxScaler(bounds[0,1], bounds[1,1])
+    n_grid_samples = grid_comps.shape[0]
+    n_spectra_dim =  test_function.sim.t.shape[0]
+    grid_spectra = np.zeros((n_grid_samples, n_spectra_dim))
+    with torch.no_grad():
+        for i in range(n_grid_samples):
+            mu, _ = from_comp_to_spectrum(test_function, gp_model, np_model, grid_comps[i,:].reshape(1, 2))
+            grid_spectra[i,:] = mu.cpu().squeeze().numpy()
+
+    data = AutoPhaseMapDataSet(grid_comps, test_function.sim.t, grid_spectra, n_domain=n_spectra_dim)
+    data.generate()
+    sweep_n_clusters = np.arange(2,8)
+    BIC = []
+    for n_clusters in sweep_n_clusters:
+        out = compute_elastic_kmeans(data, n_clusters, max_iter=50, verbose=0, smoothen=False)
+        BIC.append(compute_BIC(data, out.fik_gam, out.qik_gam, out.delta_n))
+    
+    min_bic_clusters = sweep_n_clusters[np.argmin(BIC)]
+    out = compute_elastic_kmeans(data, min_bic_clusters, max_iter=100, verbose=0, smoothen=False)
+
+    fig, axs = plt.subplots(1,2, figsize=(2*4, 4))
+    axs[0].plot(sweep_n_clusters, BIC, marker='o')
+    axs[0].axvline(x = sweep_n_clusters[np.argmin(BIC)], ls='--', color='tab:red')
+
+    ax = axs[1]
+    cmap = plt.get_cmap("tab10") 
+    ax.xaxis.set_major_formatter(lambda x, pos : scaled_tickformat(scaler_x, x, pos))
+    ax.yaxis.set_major_formatter(lambda y, pos : scaled_tickformat(scaler_y, y, pos))
+    for i in range(n_grid_samples):
+        ci = np.array([scaler_x.transform(grid_comps[i,0]), scaler_y.transform(grid_comps[i,1])])
+        _inset_spectra(ci, test_function.sim.t, grid_spectra[i,:], [], ax, color=cmap(out.delta_n[i]))
+    ax.set_xlabel('C1', fontsize=20)
+    ax.set_ylabel('C2', fontsize=20)    
+    plt.savefig(fname)
+    plt.close() 
+
+    return 
+    

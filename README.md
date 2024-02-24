@@ -24,10 +24,13 @@ pip install pandas openpyxl
 pip install seaborn
 ```
 
-3. Install botorch (that install all the required pytroch packages):
+3. Install botorch (that installs all the required pytroch packages):
 ```bash
 pip install botorch
 ```
+
+4. Install the `autophasemap` code to generate phase boundary predictions:
+Follow instructions from : git clone https://github.com/pozzo-research-group/papers.git
 
 ## Running experiments
 ````

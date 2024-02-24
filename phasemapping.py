@@ -17,8 +17,8 @@ from activephasemap.activelearn.pipeline import ActiveLearningDataset
 BATCH_SIZE = 4
 N_INIT_POINTS = 5
 N_ITERATIONS = 10
-MODEL_NAME = "dkl"
-SIMULATOR = "peptide"
+MODEL_NAME = "gp"
+SIMULATOR = "goldnano"
 TEMPERATURE = 55 # available [15,27,35,55]
 if not SIMULATOR=="peptide":
     SAVE_DIR = './results/phasemaps/%s_%s/'%(SIMULATOR, MODEL_NAME)
@@ -123,6 +123,7 @@ for i in range(N_ITERATIONS):
         plt.close()
         plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)
         plot_phasemap_pred(test_function, gp_model, np_model, SAVE_DIR+'compare_spectra_pred_%d.png'%i)
+        plot_autophasemap(test_function, gp_model, np_model, SAVE_DIR+'autphasemap_%d.png'%i)
 
     train_x = torch.cat([train_x, new_x])
     train_y = torch.cat([train_y, new_y])
@@ -142,4 +143,5 @@ plt.savefig(SAVE_DIR+'phasemap_pred.png')
 
 torch.save(train_x.cpu(), "%s/train_x.pt" % SAVE_DIR)
 torch.save(train_y.cpu(), "%s/train_y.pt" % SAVE_DIR)
-torch.save(gp_model.state_dict(), SAVE_DIR+'model.pt')
+torch.save(gp_model.state_dict(), SAVE_DIR+'gp_model.pt')
+torch.save(np_model.state_dict(), SAVE_DIR+'np_model.pt')
