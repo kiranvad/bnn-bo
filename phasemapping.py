@@ -9,6 +9,8 @@ from botorch.utils.transforms import normalize, unnormalize
 from models import SingleTaskGP, MultiTaskGP, SingleTaskDKL, MultiTaskDKL
 from test_functions import SimulatorTestFunction
 from utils import *
+from acquisitions import PhaseBoundaryPenalty
+
 from activephasemap.activelearn.simulators import PrabolicPhases, GaussianPhases, GNPPhases, PeptideGNPPhases
 from activephasemap.np.neural_process import NeuralProcess 
 from activephasemap.activelearn.surrogates import update_npmodel
@@ -97,9 +99,16 @@ for i in range(N_ITERATIONS):
     normalized_x = normalize(train_x, bounds).to(train_x)
     gp_model.fit_and_save(normalized_x, train_y, SAVE_DIR) 
     
-    acquisition = construct_acqf_by_model(gp_model, normalized_x, train_y, output_dim)
+    acqf_pred = construct_acqf_by_model(gp_model, normalized_x, train_y, output_dim)
+    # Add phase boundary penalty to acqf
+    acquisition = PenalizedAcquisitionFunction(
+        acquisition,
+        penalty_func=PhaseBoundaryPenalty(test_function, gp_model, np_model),
+        regularization_parameter=-1.0
+        )
+
     normalized_candidates, acqf_values = optimize_acqf(
-        acquisition, 
+        penalized_acquisition_function, 
         standard_bounds, 
         q=BATCH_SIZE, 
         num_restarts=20, 

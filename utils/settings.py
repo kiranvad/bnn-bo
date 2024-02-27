@@ -7,6 +7,7 @@ from botorch.sampling.stochastic_samplers import StochasticSampler
 from botorch.sampling.normal import SobolQMCNormalSampler 
 from botorch.sampling.qmc import NormalQMCEngine
 from botorch.acquisition.objective import ScalarizedPosteriorTransform
+from botorch.acquisition.acquisition import AcquisitionFunction
 from models import SingleTaskGP, MultiTaskGP, SingleTaskDKL, MultiTaskDKL
 
 def initialize_model(model_name, model_args, input_dim, output_dim, device):
@@ -33,7 +34,6 @@ def initialize_points(bounds, n_init_points, output_dim, device):
 
     return init_x
 
-
 def construct_acqf_by_model(model, train_x, train_y, num_objectives=1):
     dim = train_y.shape[1]
     sampler = StochasticSampler(sample_shape=torch.Size([256]))
@@ -47,5 +47,6 @@ def construct_acqf_by_model(model, train_x, train_y, num_objectives=1):
         sampler=sampler,
         posterior_transform = posterior_transform
         )
+
 
     return acqf

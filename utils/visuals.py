@@ -369,7 +369,7 @@ def plot_autophasemap(test_function, gp_model, np_model, fname):
         BIC.append(compute_BIC(data, out.fik_gam, out.qik_gam, out.delta_n))
     
     min_bic_clusters = sweep_n_clusters[np.argmin(BIC)]
-    out = compute_elastic_kmeans(data, min_bic_clusters, max_iter=100, verbose=0, smoothen=False)
+    out = compute_elastic_kmeans(data, min_bic_clusters, max_iter=100, verbose=0, smoothen=True)
 
     fig, axs = plt.subplots(1,2, figsize=(2*4, 4))
     axs[0].plot(sweep_n_clusters, BIC, marker='o')
