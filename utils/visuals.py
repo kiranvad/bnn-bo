@@ -347,41 +347,22 @@ class AutoPhaseMapDataSet(BaseDataSet):
             
         return
 
-def plot_autophasemap(test_function, gp_model, np_model, fname):
-    bounds = test_function.bounds.cpu().numpy()
-    grid_comps = get_twod_grid(10, bounds = bounds)
+def plot_autophasemap(pbp, fname):
     scaler_x = MinMaxScaler(bounds[0,0], bounds[1,0])
     scaler_y = MinMaxScaler(bounds[0,1], bounds[1,1])
-    n_grid_samples = grid_comps.shape[0]
-    n_spectra_dim =  test_function.sim.t.shape[0]
-    grid_spectra = np.zeros((n_grid_samples, n_spectra_dim))
-    with torch.no_grad():
-        for i in range(n_grid_samples):
-            mu, _ = from_comp_to_spectrum(test_function, gp_model, np_model, grid_comps[i,:].reshape(1, 2))
-            grid_spectra[i,:] = mu.cpu().squeeze().numpy()
-
-    data = AutoPhaseMapDataSet(grid_comps, test_function.sim.t, grid_spectra, n_domain=n_spectra_dim)
-    data.generate()
-    sweep_n_clusters = np.arange(2,8)
-    BIC = []
-    for n_clusters in sweep_n_clusters:
-        out = compute_elastic_kmeans(data, n_clusters, max_iter=50, verbose=0, smoothen=False)
-        BIC.append(compute_BIC(data, out.fik_gam, out.qik_gam, out.delta_n))
-    
-    min_bic_clusters = sweep_n_clusters[np.argmin(BIC)]
-    out = compute_elastic_kmeans(data, min_bic_clusters, max_iter=100, verbose=0, smoothen=True)
 
     fig, axs = plt.subplots(1,2, figsize=(2*4, 4))
-    axs[0].plot(sweep_n_clusters, BIC, marker='o')
-    axs[0].axvline(x = sweep_n_clusters[np.argmin(BIC)], ls='--', color='tab:red')
+    axs[0].plot(pbp.sweep_n_clusters, pbp.BIC, marker='o')
+    axs[0].axvline(x = pbp.sweep_n_clusters[pbp.min_bic_clusters], ls='--', color='tab:red')
 
     ax = axs[1]
     cmap = plt.get_cmap("tab10") 
     ax.xaxis.set_major_formatter(lambda x, pos : scaled_tickformat(scaler_x, x, pos))
     ax.yaxis.set_major_formatter(lambda y, pos : scaled_tickformat(scaler_y, y, pos))
-    for i in range(n_grid_samples):
-        ci = np.array([scaler_x.transform(grid_comps[i,0]), scaler_y.transform(grid_comps[i,1])])
-        _inset_spectra(ci, test_function.sim.t, grid_spectra[i,:], [], ax, color=cmap(out.delta_n[i]))
+    for i in range(pbp.grid_comps.shape[0]):
+        ci = np.array([scaler_x.transform(pbp.grid_comps[i,0]), scaler_y.transform(pbp.grid_comps[i,1])])
+        _inset_spectra(ci, pbp.test_function.sim.t, pbp.grid_spectra[i,:], [], ax, 
+        color=cmap(pbp.out.delta_n[i]))
     ax.set_xlabel('C1', fontsize=20)
     ax.set_ylabel('C2', fontsize=20)    
     plt.savefig(fname)

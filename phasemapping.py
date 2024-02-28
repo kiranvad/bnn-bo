@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from botorch.optim import optimize_acqf
 from botorch.utils.transforms import normalize, unnormalize
+from botorch.acquisition.penalized import PenalizedAcquisitionFunction
 
 from models import SingleTaskGP, MultiTaskGP, SingleTaskDKL, MultiTaskDKL
 from test_functions import SimulatorTestFunction
@@ -99,16 +100,17 @@ for i in range(N_ITERATIONS):
     normalized_x = normalize(train_x, bounds).to(train_x)
     gp_model.fit_and_save(normalized_x, train_y, SAVE_DIR) 
     
-    acqf_pred = construct_acqf_by_model(gp_model, normalized_x, train_y, output_dim)
+    acqf_model = construct_acqf_by_model(gp_model, normalized_x, train_y, output_dim)
+    acqf_phase = PhaseBoundaryPenalty(test_function, gp_model, np_model)
     # Add phase boundary penalty to acqf
     acquisition = PenalizedAcquisitionFunction(
-        acquisition,
-        penalty_func=PhaseBoundaryPenalty(test_function, gp_model, np_model),
+        acqf_model,
+        penalty_func=acqf_phase,
         regularization_parameter=-1.0
         )
 
     normalized_candidates, acqf_values = optimize_acqf(
-        penalized_acquisition_function, 
+        acquisition, 
         standard_bounds, 
         q=BATCH_SIZE, 
         num_restarts=20, 
@@ -132,7 +134,7 @@ for i in range(N_ITERATIONS):
         plt.close()
         plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)
         plot_phasemap_pred(test_function, gp_model, np_model, SAVE_DIR+'compare_spectra_pred_%d.png'%i)
-        plot_autophasemap(test_function, gp_model, np_model, SAVE_DIR+'autphasemap_%d.png'%i)
+        plot_autophasemap(acqf_phase, SAVE_DIR+'autphasemap_%d.png'%i)
 
     train_x = torch.cat([train_x, new_x])
     train_y = torch.cat([train_y, new_y])
