@@ -4,6 +4,7 @@ from autophasemap.geometry import SquareRootSlopeFramework, WarpingManifold
 from autophasemap.diffusion import DiffusionMaps
 import numpy as np
 from botorch.utils.transforms import normalize
+import pdb
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -82,8 +83,9 @@ class PhaseBoundaryPenalty(torch.nn.Module):
 
     def get_entropy(self, c):
         SRSF = SquareRootSlopeFramework(self.data.t)
-        diffmap = DiffusionMaps(self.data.C)
-        print(c)
+        pdb.set_trace()
+        c_aug = np.hstack((self.data.C, c))
+        diffmap = DiffusionMaps(c_aug)
         mu, _ = _from_comp_to_spectrum(self.test_function, self.gp_model, self.np_model, c.reshape(1, 2))
         F = mu.cpu().squeeze().numpy()
         q = SRSF.to_srsf(F)
@@ -93,9 +95,12 @@ class PhaseBoundaryPenalty(torch.nn.Module):
             f_gam = SRSF.warp_f_gamma(F, gamma)
             q_gam = SRSF.to_srsf(f_gam)
             dists[k] = np.sqrt(np.trapz((self.out.templates[k] - q_gam)**2, self.data.t))
-        
-        s_norm, s_hat, d_smoothened = diffmap.get_asymptotic_function(dists)
-        entropy = [-d*np.log(d) for d in d_smoothened]
+        dists_aug = np.hstack((self.out.dist, dists))
+        dists_diffused = np.zeros(self.min_bic_clusters)
+        for k in range(self.min_bic_clusters):
+            _, _, d_smoothened = diffmap.get_asymptotic_function(dists_aug[:,k])
+            dists_diffused[k] = d_smoothened[-1]
+        entropy = [-d*np.log(d) for d in dists_diffused]
         
         return np.sum(np.asarray(entropy).T, axis=1)
 
