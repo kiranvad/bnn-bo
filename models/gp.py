@@ -4,7 +4,7 @@ import botorch
 import torch
 from botorch.fit import fit_gpytorch_mll 
 from botorch.optim.fit import fit_gpytorch_mll_torch
-from botorch.models.model import Model
+from botorch.models.model import Model, FantasizeMixin
 from botorch.models.model_list_gp_regression import ModelListGP
 from botorch.models.transforms.outcome import Standardize
 from botorch.posteriors import Posterior
@@ -63,7 +63,7 @@ class SingleTaskGP(Model):
     def num_outputs(self) -> int:
         return self.gp.num_outputs
 
-    def fit_and_save(self, train_x, train_y, save_dir):
+    def fit_and_save(self, train_x, train_y):
         if self.output_dim > 1:
             raise RuntimeError(
                 "SingleTaskGP does not fit tasks with multiple objectives")
@@ -107,7 +107,7 @@ class MultiTaskGP(Model):
     def num_outputs(self) -> int:
         return self.gp.num_outputs
 
-    def fit_and_save(self, train_x, train_y, save_dir, **kwargs):
+    def fit_and_save(self, train_x, train_y, **kwargs):
         models = []
         for d in range(self.output_dim):
             models.append(
@@ -120,6 +120,20 @@ class MultiTaskGP(Model):
         self.mll = SumMarginalLogLikelihood(self.gp.likelihood, self.gp).to(train_x)
         fit_gp_model(self.gp, self.mll, **kwargs)
 
+    def load_from_state(self, train_x, train_y, state):
+        models = []
+        for d in range(self.output_dim):
+            models.append(
+                botorch.models.SingleTaskGP(
+                    train_x,
+                    train_y[:, d].unsqueeze(-1),
+                    outcome_transform=Standardize(m=1)).to(train_x))
+
+        gp = ModelListGP(*models)
+        mll = SumMarginalLogLikelihood(gp.likelihood, gp).to(train_x)
+
+        return gp.load_state_dict(state) 
+        
     def get_covaraince(self, x, xp):  
         cov = torch.zeros((1,len(xp))).to(xp)
         for m in self.gp.models:        

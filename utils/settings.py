@@ -1,4 +1,4 @@
-import torch
+import torch, gpytorch
 from botorch.acquisition.monte_carlo import qUpperConfidenceBound
 from botorch.optim import optimize_acqf
 from botorch.utils.sampling import draw_sobol_samples
@@ -8,6 +8,7 @@ from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.sampling.qmc import NormalQMCEngine
 from botorch.acquisition.objective import ScalarizedPosteriorTransform
 from botorch.acquisition.acquisition import AcquisitionFunction
+from botorch.acquisition.active_learning import qNegIntegratedPosteriorVariance 
 from models import SingleTaskGP, MultiTaskGP, SingleTaskDKL, MultiTaskDKL
 
 def initialize_model(model_name, model_args, input_dim, output_dim, device):
@@ -48,5 +49,4 @@ def construct_acqf_by_model(model, train_x, train_y, num_objectives=1):
         posterior_transform = posterior_transform
         )
 
-
-    return acqf
+    return acqf 

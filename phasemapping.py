@@ -20,7 +20,7 @@ from activephasemap.activelearn.pipeline import ActiveLearningDataset
 BATCH_SIZE = 4
 N_INIT_POINTS = 5
 N_ITERATIONS = 10
-MODEL_NAME = "gp"
+MODEL_NAME = "dkl"
 SIMULATOR = "goldnano"
 TEMPERATURE = 55 # available [15,27,35,55]
 if not SIMULATOR=="peptide":
@@ -89,7 +89,6 @@ elif MODEL_NAME=="dkl":
     "train_steps": 1000
     }
 
-
 t = time.time()
 data = ActiveLearningDataset(train_x,spectra)
 for i in range(N_ITERATIONS):
@@ -98,16 +97,18 @@ for i in range(N_ITERATIONS):
 
     # fit model on normalized x
     normalized_x = normalize(train_x, bounds).to(train_x)
-    gp_model.fit_and_save(normalized_x, train_y, SAVE_DIR) 
-    
+    gp_model.fit_and_save(normalized_x, train_y, num_epochs=2000) 
+
     acqf_model = construct_acqf_by_model(gp_model, normalized_x, train_y, output_dim)
     acqf_phase = PhaseBoundaryPenalty(test_function, gp_model, np_model)
-    # Add phase boundary penalty to acqf
-    acquisition = PenalizedAcquisitionFunction(
-        acqf_model,
-        penalty_func=acqf_phase,
-        regularization_parameter=-1.0
-        )
+    # # Create an acqusition function with uncertainties from prediction and boundaries
+    # acquisition = PenalizedAcquisitionFunction(
+    #     acqf_model,
+    #     penalty_func=acqf_phase,
+    #     regularization_parameter=-1.0
+    #     )
+
+    acquisition = acqf_model
 
     normalized_candidates, acqf_values = optimize_acqf(
         acquisition, 
@@ -125,34 +126,32 @@ for i in range(N_ITERATIONS):
     new_y, new_spectra = test_function(np_model, new_x)
 
     if np.remainder(100*(i+1)/N_ITERATIONS,10)==0:
+        torch.save(gp_model.state_dict(), SAVE_DIR+'gp_model_%d.pt'%i)
         plot_experiment(test_function.sim.t, design_space_bounds, data)
         plt.savefig(SAVE_DIR+'train_spectra_%d.png'%i)
         # update np model with new data
         np_model, np_loss = update_npmodel(test_function.sim.t, np_model, data, num_iterations=75, verbose=False)
+        torch.save(np_model.state_dict(), SAVE_DIR+'np_model_%d.pt'%i)
         plot_iteration(i, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
         plt.savefig(SAVE_DIR+'itr_%d.png'%i)
         plt.close()
         plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)
         plot_phasemap_pred(test_function, gp_model, np_model, SAVE_DIR+'compare_spectra_pred_%d.png'%i)
         plot_autophasemap(acqf_phase, SAVE_DIR+'autphasemap_%d.png'%i)
+        torch.save(train_x.cpu(), SAVE_DIR+"train_x_%d.pt" %i)
+        torch.save(train_y.cpu(), SAVE_DIR+"train_y_%d.pt" %i)
 
     train_x = torch.cat([train_x, new_x])
     train_y = torch.cat([train_y, new_y])
     data.update(new_x, new_spectra)
 
 """Plotting after training"""
-plot_experiment(test_function.sim.t, design_space_bounds, data)
-plt.savefig(SAVE_DIR+'train_spectra_%d.png'%i)
-plot_iteration(i, test_function, train_x, gp_model, np_model, acquisition, N_LATENT)
-plt.savefig(SAVE_DIR+'itr_%d.png'%i) 
-plot_phasemap_pred(test_function, gp_model, np_model, SAVE_DIR+'compare_spectra_pred_%d.png'%i)
-plot_gpmodel(test_function, gp_model, np_model, SAVE_DIR+'gpmodel_itr_%d.png'%i)   
-
-fig, ax = plt.subplots()
-plot_gpmodel_grid(ax, test_function, gp_model, np_model, show_sigma=False)
-plt.savefig(SAVE_DIR+'phasemap_pred.png')
+gp_model = initialize_model(MODEL_NAME, model_args, input_dim, output_dim, device)
+normalized_x = normalize(train_x, bounds).to(train_x)
+gp_model.fit_and_save(normalized_x, train_y, num_epochs=2000) 
+torch.save(gp_model.state_dict(), SAVE_DIR+'gp_model.pt')
+np_model, np_loss = update_npmodel(test_function.sim.t, np_model, data, num_iterations=75, verbose=False)
+torch.save(np_model.state_dict(), SAVE_DIR+'np_model.pt')
 
 torch.save(train_x.cpu(), "%s/train_x.pt" % SAVE_DIR)
 torch.save(train_y.cpu(), "%s/train_y.pt" % SAVE_DIR)
-torch.save(gp_model.state_dict(), SAVE_DIR+'gp_model.pt')
-torch.save(np_model.state_dict(), SAVE_DIR+'np_model.pt')

@@ -1,2 +1,2 @@
-from .settings import initialize_model, initialize_points, construct_acqf_by_model
+from .settings import *
 from .visuals import *

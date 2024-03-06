@@ -25,9 +25,11 @@ def from_comp_to_spectrum(test_function, gp_model, np_model, c):
         posterior = gp_model.posterior(normalized_x)  # based on https://github.com/pytorch/botorch/issues/1110
         t = torch.from_numpy(t_).to(device)
         t = t.repeat(c.shape[0]).view(c.shape[0], len(t_), 1)
-        mu, std = np_model.xz_to_y(t, posterior.mean)
-
-        return mu, std  
+        mu = []
+        for _ in range(250):
+            mu_i, _ = np_model.xz_to_y(t, posterior.rsample().squeeze(0))
+            mu.append(mu_i)
+        return torch.cat(mu).mean(dim=0, keepdim=True), torch.cat(mu).std(dim=0, keepdim=True) 
 
 def get_twod_grid(n_grid, bounds):
     x = np.linspace(bounds[0,0],bounds[1,0], n_grid)
@@ -348,12 +350,12 @@ class AutoPhaseMapDataSet(BaseDataSet):
         return
 
 def plot_autophasemap(pbp, fname):
-    scaler_x = MinMaxScaler(bounds[0,0], bounds[1,0])
-    scaler_y = MinMaxScaler(bounds[0,1], bounds[1,1])
+    scaler_x = MinMaxScaler(pbp.bounds[0,0], pbp.bounds[1,0])
+    scaler_y = MinMaxScaler(pbp.bounds[0,1], pbp.bounds[1,1])
 
     fig, axs = plt.subplots(1,2, figsize=(2*4, 4))
     axs[0].plot(pbp.sweep_n_clusters, pbp.BIC, marker='o')
-    axs[0].axvline(x = pbp.sweep_n_clusters[pbp.min_bic_clusters], ls='--', color='tab:red')
+    axs[0].axvline(x = pbp.min_bic_clusters, ls='--', color='tab:red')
 
     ax = axs[1]
     cmap = plt.get_cmap("tab10") 

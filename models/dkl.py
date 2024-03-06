@@ -294,7 +294,7 @@ class MultiTaskDKL(Model):
             optimizer.step() 
 
 
-    def fit_and_save(self, x, y, save_dir):
+    def fit_and_save(self, x, y, **kwargs):
         train_ind = np.random.randint(0, len(x), int(0.8*len(x)))
         test_ind = np.setdiff1d(np.arange(len(x)), train_ind)
         train_x, train_y = x[train_ind,:], y[train_ind,:]
@@ -342,7 +342,6 @@ class MultiTaskDKL(Model):
                     output = self.gp(*[test_x for _ in range(self.output_dim)])
                     test_loss = - mll(output, test_y.transpose(-1, -2)) 
                     print(f" Test Loss: {test_loss.item():>4.3f} ")
-
 
     def get_covaraince(self, x, xp):
         cov = torch.zeros((1,len(xp))).to(xp)
